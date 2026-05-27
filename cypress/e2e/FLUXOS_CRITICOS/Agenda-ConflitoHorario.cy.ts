@@ -548,7 +548,7 @@ function selecionarProfissional() {
   }
 
   function gravarAgendamento() {
-    cy.contains(/Gravar|Salvar|Guardar/i, { timeout: 30000 })
+    cy.contains(/Agendar|To Schedule|Guardar/i, { timeout: 30000 })
       .scrollIntoView()
       .should('be.visible')
       .click({ force: true });
