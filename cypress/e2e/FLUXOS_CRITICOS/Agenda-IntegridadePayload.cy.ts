@@ -1,0 +1,734 @@
+/*
+Esse teste crítico valida a integridade do payload enviado para a API.
+
+Ele verifica se, ao criar um agendamento pela tela, o POST enviado contém:
+- serviço
+- atendente/profissional
+- data selecionada
+- horário selecionado
+- cliente
+
+Esse teste ajuda a encontrar problemas como:
+- tela seleciona um serviço, mas API recebe payload incompleto
+- tela seleciona um atendente, mas API não envia profissional
+- data enviada diferente da data clicada
+- horário enviado diferente do horário clicado
+- erro de fuso horário
+- sucesso visual com dados errados no backend
+*/
+
+describe('Agenda Crítica - Integridade do Payload', () => {
+  beforeEach(() => {
+  cy.clearCookies();
+  cy.clearLocalStorage();
+});
+  let servicoSelecionadoTexto = '';
+  let atendenteSelecionadoTexto = '';
+  let dataSelecionadaTexto = '';
+  let dataSelecionadaApiEsperada = '';
+  let horarioSelecionadoTexto = '';
+  let horarioSelecionadoApiEsperado = '';
+  let dataSelecionadaEhHoje = false;
+
+  const telefone = gerarTelefoneAleatorio();
+
+  function gerarTelefoneAleatorio() {
+    const ddd = '49';
+    const primeiroDigito = '9';
+    const numero = Math.floor(10000000 + Math.random() * 90000000);
+
+    return `${ddd}${primeiroDigito}${numero}`;
+  }
+
+  function fecharCookiesSeAparecer() {
+    cy.get('body').then(($body) => {
+      const texto = $body.text();
+
+      if (/Entendi|Aceitar|Aceito|OK|Concordo/i.test(texto)) {
+        cy.contains(/Entendi|Aceitar|Aceito|OK|Concordo/i).click({
+          force: true,
+        });
+      }
+    });
+  }
+
+  function limparTexto(texto: string) {
+    return texto.replace(/\s+/g, ' ').trim();
+  }
+
+  function formatarDataApi(data: Date) {
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+
+    return `${ano}-${mes}-${dia}`;
+  }
+
+  function parseDataDiaMes(texto: string) {
+    const match = texto.match(/(\d{2})\/(\d{2})/);
+
+    if (!match) {
+      return null;
+    }
+
+    const dia = Number(match[1]);
+    const mes = Number(match[2]) - 1;
+    const anoAtual = new Date().getFullYear();
+
+    return new Date(anoAtual, mes, dia);
+  }
+
+  function parseHorario(texto: string) {
+    const match = texto.match(/(\d{1,2}):(\d{2})h/i);
+
+    if (!match) {
+      return null;
+    }
+
+    const hora = Number(match[1]);
+    const minuto = Number(match[2]);
+
+    return hora * 60 + minuto;
+  }
+
+  function normalizarRequestBody(body: any) {
+    if (!body) {
+      return {};
+    }
+
+    if (typeof body === 'string') {
+      try {
+        return JSON.parse(body);
+      } catch {
+        return body;
+      }
+    }
+
+    return body;
+  }
+
+  function abrirAgenda() {
+    cy.contains(/Agenda/i, { timeout: 30000 })
+      .scrollIntoView()
+      .click({ force: true });
+
+    cy.contains(/Listagem de agendamentos/i, { timeout: 30000 }).should(
+      'exist'
+    );
+
+    cy.wait(1000);
+  }
+
+  function abrirCadastroAgendamento() {
+    cy.contains(/Cadastrar agendamento/i, { timeout: 30000 })
+      .scrollIntoView()
+      .should('exist')
+      .click({ force: true });
+
+    cy.get('body', { timeout: 30000 })
+      .invoke('text')
+      .should('match', /Escolha o servi[çc]o/i);
+  }
+
+  function obterCardsServico($body: JQuery<HTMLElement>) {
+  const encontrados: HTMLElement[] = [];
+  const vistos = new Set<HTMLElement>();
+
+  $body
+    .find('*:visible')
+    .toArray()
+    .forEach((el) => {
+      const elemento = el as HTMLElement;
+
+      const texto = limparTexto(Cypress.$(elemento).text());
+
+      if (!texto || texto.length > 220) {
+        return;
+      }
+
+      const rect = elemento.getBoundingClientRect();
+
+      const temTamanhoPossivel =
+        rect.width >= 20 &&
+        rect.width <= 700 &&
+        rect.height >= 10 &&
+        rect.height <= 420;
+
+      const contemPalavraServico =
+        /Corte|Servi|Servi[çc]o|Servicio/i.test(texto);
+
+      const contemValorServico =
+        /(?:R\$|\$|₲|G|Gs\.?|G\$)\s*[\d.,]+|[\d.,]+\s*(?:R\$|\$|₲|G|Gs\.?|G\$)/i.test(
+          texto
+        );
+
+      const naoEhTituloBuscaOuMenu =
+        !/Escolha o servi[çc]o|Buscar servi[çc]o|Buscar servicio|Exibir mais|Mostrar mais|Dashboard|Agenda|Clientes|Atendentes|Produtos|Configura[çc][õo]es|Termos de uso|Política de privacidade|cookies|Entendi/i.test(
+          texto
+        );
+
+      if (
+        !temTamanhoPossivel ||
+        !naoEhTituloBuscaOuMenu ||
+        (!contemPalavraServico && !contemValorServico)
+      ) {
+        return;
+      }
+
+      const clicavel =
+        Cypress.$(elemento)
+          .closest('.q-card, .q-item, button, [role="button"], [class*="card"], [class*="item"]')
+          .get(0) || elemento;
+
+      if (!vistos.has(clicavel)) {
+        vistos.add(clicavel);
+        encontrados.push(clicavel);
+      }
+    });
+
+  return encontrados.sort((a, b) => {
+    const textoA = limparTexto(Cypress.$(a).text());
+    const textoB = limparTexto(Cypress.$(b).text());
+
+    const scoreA =
+      (/Corte|Servi|Servi[çc]o|Servicio/i.test(textoA) ? 100 : 0) +
+      (/(?:R\$|\$|₲|G|Gs\.?|G\$)\s*[\d.,]+/i.test(textoA) ? 80 : 0) -
+      textoA.length;
+
+    const scoreB =
+      (/Corte|Servi|Servi[çc]o|Servicio/i.test(textoB) ? 100 : 0) +
+      (/(?:R\$|\$|₲|G|Gs\.?|G\$)\s*[\d.,]+/i.test(textoB) ? 80 : 0) -
+      textoB.length;
+
+    return scoreB - scoreA;
+  });
+}
+
+function selecionarServico(tentativa = 0): Cypress.Chainable {
+  cy.get('body', { timeout: 30000 })
+    .invoke('text')
+    .should('match', /Escolha o servi[çc]o/i);
+
+  fecharCookiesSeAparecer();
+
+  cy.wait(1000);
+
+  return cy.get('body').then(($body) => {
+    const cardsServico = obterCardsServico($body);
+
+    if (cardsServico.length === 0) {
+      cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 1200)}`);
+      cy.screenshot('servico-payload-nao-encontrado');
+
+      throw new Error(
+        'Nenhum card de serviço encontrado com Corte, Servi, Serviço, Servicio, R$, $, ₲ ou G.'
+      );
+    }
+
+    const cardServico = cardsServico[tentativa] || cardsServico[0];
+
+    if (!cardServico) {
+      throw new Error('Card de serviço inválido.');
+    }
+
+    servicoSelecionadoTexto = limparTexto(Cypress.$(cardServico).text());
+
+    cy.log(`Serviço selecionado: ${servicoSelecionadoTexto}`);
+
+    cy.wrap(cardServico)
+      .scrollIntoView()
+      .click('center', { force: true });
+
+    cy.wait(1500);
+
+    return cy.get('body').then(($bodyDepois) => {
+      const textoDepois = $bodyDepois.text();
+
+      if (/Escolha o profissional/i.test(textoDepois)) {
+        return cy.wrap(null);
+      }
+
+      if (tentativa + 1 < cardsServico.length && tentativa < 5) {
+        cy.log('Serviço clicado não avançou. Tentando próximo card.');
+
+        return selecionarServico(tentativa + 1);
+      }
+
+      cy.screenshot('servico-clicado-mas-nao-avancou');
+
+      throw new Error(
+        `Serviço foi clicado, mas a tela não avançou para profissional. Serviço: ${servicoSelecionadoTexto}`
+      );
+    });
+  });
+}
+
+function obterCardsProfissional($body: JQuery<HTMLElement>) {
+  const tituloProfissional = $body
+    .find('*:visible')
+    .toArray()
+    .find((el) => {
+      const texto = limparTexto(Cypress.$(el).text());
+
+      return /^Escolha o profissional$/i.test(texto);
+    });
+
+  const topTitulo = tituloProfissional
+    ? tituloProfissional.getBoundingClientRect().top
+    : 0;
+
+  return $body
+    .find(
+      '.q-card:visible, .q-item:visible, div:visible, button:visible, [role="button"]:visible'
+    )
+    .toArray()
+    .filter((el) => {
+      const texto = limparTexto(Cypress.$(el).text());
+      const rect = el.getBoundingClientRect();
+
+      const depoisDoTitulo = rect.top >= topTitulo - 5;
+
+      const temTamanhoPossivel =
+        rect.width >= 40 &&
+        rect.width <= 800 &&
+        rect.height >= 20 &&
+        rect.height <= 400;
+
+      const pareceProfissional =
+        /Usuario Paraguai/i.test(texto) ||
+        /E2E\s+Atendente/i.test(texto) ||
+        /Atendente/i.test(texto) ||
+        /Barbeiro/i.test(texto) ||
+        /Peluquero/i.test(texto) ||
+        /person/i.test(texto);
+
+      const naoEhMenuOuTitulo =
+        !/Escolha o profissional|Escolha o servi[çc]o|Corte|Barba|Cejas|Servi[çc]o|Servicio|R\$|₲|\$|Dashboard|Agenda|Clientes|Atendentes|Produtos|Configura[çc][õo]es|Termos de uso|Política de privacidade|cookies|Entendi/i.test(
+          texto
+        );
+
+      return (
+        depoisDoTitulo &&
+        temTamanhoPossivel &&
+        pareceProfissional &&
+        naoEhMenuOuTitulo
+      );
+    }) as HTMLElement[];
+}
+
+function selecionarProfissional() {
+  cy.get('body', { timeout: 30000 })
+    .invoke('text')
+    .should('match', /Escolha o profissional/i);
+
+  fecharCookiesSeAparecer();
+
+  cy.wait(1000);
+
+  cy.get('body').then(($body) => {
+    const cardsProfissional = obterCardsProfissional($body);
+
+    if (cardsProfissional.length === 0) {
+      cy.screenshot('atendente-payload-nao-encontrado');
+
+      throw new Error(
+        'Nenhum card de profissional foi encontrado após selecionar o serviço.'
+      );
+    }
+
+    const profissionalPreferido = cardsProfissional.find((card) => {
+      const texto = limparTexto(Cypress.$(card).text());
+
+      return /Usuario Paraguai|E2E\s+Atendente|Atendente|Barbeiro|Peluquero/i.test(
+        texto
+      );
+    });
+
+    const cardProfissional = profissionalPreferido || cardsProfissional[0];
+
+    if (!cardProfissional) {
+      throw new Error('Card de profissional inválido.');
+    }
+
+    atendenteSelecionadoTexto = limparTexto(
+      Cypress.$(cardProfissional).text()
+    );
+
+    cy.log(`Atendente selecionado: ${atendenteSelecionadoTexto}`);
+
+    const clicavel =
+      Cypress.$(cardProfissional)
+        .closest('.q-card, .q-item, button, [role="button"]')
+        .get(0) || cardProfissional;
+
+    cy.wrap(clicavel)
+      .scrollIntoView()
+      .click('center', { force: true });
+  });
+
+  cy.wait(1500);
+
+  cy.get('body').then(($body) => {
+    const texto = $body.text();
+
+    if (/Escolha o profissional/i.test(texto) && !/\d{2}\/\d{2}/.test(texto)) {
+      cy.log(
+        'Ainda está na etapa profissional. Tentando clicar diretamente no nome.'
+      );
+
+      const profissionalPorTexto = $body
+        .find('*:visible')
+        .toArray()
+        .find((el) => {
+          const textoElemento = limparTexto(Cypress.$(el).text());
+
+          return /Usuario Paraguai|E2E\s+Atendente|Atendente|Barbeiro|Peluquero/i.test(
+            textoElemento
+          );
+        });
+
+      if (!profissionalPorTexto) {
+        cy.screenshot('profissional-segunda-tentativa-nao-encontrado');
+
+        throw new Error(
+          'Profissional apareceu na tela, mas não foi possível localizar elemento clicável.'
+        );
+      }
+
+      const clicavel =
+        Cypress.$(profissionalPorTexto)
+          .closest('.q-card, .q-item, button, [role="button"], div')
+          .get(0) || profissionalPorTexto;
+
+      cy.wrap(clicavel)
+        .scrollIntoView()
+        .click('center', { force: true });
+
+      cy.wait(1500);
+    }
+  });
+
+  cy.get('body', { timeout: 30000 })
+    .invoke('text')
+    .should(
+      'match',
+      /Selecione o dia da semana|Selecione o dia|Escolha o dia|\d{2}\/\d{2}/i
+    );
+}
+
+  function aguardarDatasAparecerem() {
+    cy.get('body', { timeout: 30000 })
+      .invoke('text')
+      .should('match', /Selecione o dia da semana|\d{2}\/\d{2}/i);
+  }
+
+  function selecionarDataFuturaOuHoje() {
+    cy.get('body').then(($body) => {
+      const agora = new Date();
+      const hoje = new Date(
+        agora.getFullYear(),
+        agora.getMonth(),
+        agora.getDate()
+      );
+
+      const elementosData = $body
+        .find('*:visible')
+        .toArray()
+        .filter((el) => {
+          const texto = Cypress.$(el).text().trim();
+
+          return /^\d{2}\/\d{2}$/.test(texto);
+        });
+
+      const datas = elementosData
+        .map((el) => {
+          const texto = Cypress.$(el).text().trim();
+          const data = parseDataDiaMes(texto);
+
+          return {
+            el,
+            texto,
+            data,
+          };
+        })
+        .filter((item) => item.data !== null) as Array<{
+        el: Element;
+        texto: string;
+        data: Date;
+      }>;
+
+      expect(datas.length, 'datas disponíveis').to.be.greaterThan(0);
+
+      const datasFuturas = datas.filter((item) => item.data > hoje);
+      const datasHoje = datas.filter(
+        (item) => item.data.getTime() === hoje.getTime()
+      );
+
+      const dataEscolhida = datasFuturas[0] || datasHoje[0] || datas[0];
+
+      if (!dataEscolhida) {
+        throw new Error('Nenhuma data disponível para selecionar.');
+      }
+
+      dataSelecionadaTexto = dataEscolhida.texto;
+      dataSelecionadaApiEsperada = formatarDataApi(dataEscolhida.data);
+      dataSelecionadaEhHoje =
+        dataEscolhida.data.getTime() === hoje.getTime();
+
+      cy.log(`Data selecionada na tela: ${dataSelecionadaTexto}`);
+      cy.log(`Data esperada no payload: ${dataSelecionadaApiEsperada}`);
+      cy.log(`Data selecionada é hoje? ${dataSelecionadaEhHoje}`);
+
+      cy.wrap(dataEscolhida.el)
+        .scrollIntoView()
+        .should('be.visible')
+        .click({ force: true });
+    });
+  }
+
+  function selecionarHorarioFuturo() {
+    cy.get('body').then(($body) => {
+      const agora = new Date();
+      const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
+
+      const elementosHorario = $body
+        .find('*:visible')
+        .toArray()
+        .filter((el) => {
+          const texto = Cypress.$(el).text().trim();
+
+          return /^\d{1,2}:\d{2}h$/i.test(texto);
+        });
+
+      const horarios = elementosHorario
+        .map((el) => {
+          const texto = Cypress.$(el).text().trim();
+          const minutos = parseHorario(texto);
+
+          return {
+            el,
+            texto,
+            minutos,
+          };
+        })
+        .filter((item) => item.minutos !== null) as Array<{
+        el: Element;
+        texto: string;
+        minutos: number;
+      }>;
+
+      expect(horarios.length, 'horários disponíveis').to.be.greaterThan(0);
+
+      const horariosValidos = dataSelecionadaEhHoje
+        ? horarios.filter((item) => item.minutos > minutosAgora)
+        : horarios;
+
+      expect(
+        horariosValidos.length,
+        'horários futuros disponíveis'
+      ).to.be.greaterThan(0);
+
+      const horarioEscolhido = horariosValidos[0];
+
+      if (!horarioEscolhido) {
+        throw new Error('Nenhum horário válido disponível.');
+      }
+
+      horarioSelecionadoTexto = horarioEscolhido.texto;
+      horarioSelecionadoApiEsperado = horarioEscolhido.texto.replace(
+        /h$/i,
+        ''
+      );
+
+      cy.log(`Horário selecionado na tela: ${horarioSelecionadoTexto}`);
+      cy.log(`Horário esperado no payload: ${horarioSelecionadoApiEsperado}`);
+
+      cy.wrap(horarioEscolhido.el)
+        .scrollIntoView()
+        .should('be.visible')
+        .click({ force: true });
+    });
+  }
+
+  function selecionarCliente() {
+    cy.contains(/Nome do cliente/i, { timeout: 30000 })
+      .scrollIntoView()
+      .should('be.visible');
+
+    cy.get('input:visible')
+      .eq(1)
+      .should('be.visible')
+      .click({ force: true })
+      .type('{selectall}{backspace}CLIENTE', { force: true });
+
+    cy.wait(1000);
+
+    cy.get(
+      '.q-menu:visible .q-item, .q-virtual-scroll__content .q-item, [role="option"]',
+      { timeout: 10000 }
+    )
+      .filter(':visible')
+      .first()
+      .click({ force: true });
+
+    cy.wait(500);
+
+    cy.get('input:visible')
+      .eq(0)
+      .then(($inputTelefone) => {
+        const valorAtual = String($inputTelefone.val() || '').trim();
+
+        if (!valorAtual) {
+          cy.wrap($inputTelefone)
+            .click({ force: true })
+            .type(`{selectall}{backspace}${telefone}`, { force: true });
+        }
+      });
+  }
+
+  function validarSemErroGrave() {
+    cy.get('body', { timeout: 30000 })
+      .invoke('text')
+      .should(
+        'not.match',
+        /TypeError|Cannot read|undefined is not|Internal Server Error|Network Error|Erro interno|is not a function/i
+      );
+  }
+
+  function validarPayloadAgendamento(payloadOriginal: any) {
+    const payload = normalizarRequestBody(payloadOriginal);
+    const payloadString = JSON.stringify(payload);
+
+    cy.log(`Payload enviado: ${payloadString}`);
+    cy.log(`Serviço selecionado: ${servicoSelecionadoTexto}`);
+    cy.log(`Atendente selecionado: ${atendenteSelecionadoTexto}`);
+    cy.log(`Data selecionada: ${dataSelecionadaTexto}`);
+    cy.log(`Horário selecionado: ${horarioSelecionadoTexto}`);
+
+    expect(
+      servicoSelecionadoTexto,
+      'serviço selecionado na tela'
+    ).to.not.be.empty;
+
+    expect(
+      atendenteSelecionadoTexto,
+      'atendente selecionado na tela'
+    ).to.not.be.empty;
+
+    expect(
+      dataSelecionadaApiEsperada,
+      'data esperada para payload'
+    ).to.not.be.empty;
+
+    expect(
+      horarioSelecionadoApiEsperado,
+      'horário esperado para payload'
+    ).to.not.be.empty;
+
+    expect(
+      payloadString,
+      'Payload deve conter campo relacionado a serviço.'
+    ).to.match(
+      /service|servi[çc]o|service_id|service_uuid|services|serviceId/i
+    );
+
+    expect(
+      payloadString,
+      'Payload deve conter campo relacionado a atendente/profissional.'
+    ).to.match(
+      /companyUserId|company_user|company_user_id|companyUser|professional|professional_id|professionalId|atendente|user_id|userId|employee/i
+    );
+
+    expect(
+      payloadString,
+      'Payload deve conter campo relacionado à data.'
+    ).to.match(/date|data|schedule_date|scheduled_at|day/i);
+
+    expect(
+      payloadString,
+      'Payload deve conter campo relacionado ao horário.'
+    ).to.match(/time|hora|hour|start_time|scheduled_at|start/i);
+
+    expect(
+      payloadString,
+      'Payload deve conter campo relacionado ao cliente.'
+    ).to.match(
+      /client|cliente|customer|customer_id|customerId|client_id|clientId|customerName|phone|telefone|name/i
+    );
+
+    expect(
+      payloadString,
+      `Payload deve conter a data selecionada na tela: ${dataSelecionadaApiEsperada}`
+    ).to.include(dataSelecionadaApiEsperada);
+
+    expect(
+      payloadString,
+      `Payload deve conter o horário selecionado na tela: ${horarioSelecionadoApiEsperado}`
+    ).to.include(horarioSelecionadoApiEsperado);
+  }
+
+  beforeEach(() => {
+    cy.login();
+
+    fecharCookiesSeAparecer();
+
+    abrirAgenda();
+  });
+
+  it('Deve enviar para API os dados selecionados na tela', () => {
+    abrirCadastroAgendamento();
+
+    selecionarServico();
+
+    selecionarProfissional();
+
+    aguardarDatasAparecerem();
+
+    selecionarDataFuturaOuHoje();
+
+    cy.wait(2000);
+
+    cy.contains(/Hor[aá]rios dispon[ií]veis/i, { timeout: 30000 })
+      .scrollIntoView()
+      .should('be.visible');
+
+    selecionarHorarioFuturo();
+
+    cy.wait(1000);
+
+    selecionarCliente();
+
+    cy.intercept('POST', '**/api/**').as('postCriacaoAgendamento');
+
+    cy.contains(/Gravar|Salvar|Guardar/i, { timeout: 30000 })
+      .scrollIntoView()
+      .should('be.visible')
+      .click({ force: true });
+
+    cy.wait('@postCriacaoAgendamento', { timeout: 30000 }).then(
+      (interception) => {
+        const statusCode = interception.response?.statusCode;
+        const requestUrl = interception.request.url;
+        const requestBody = interception.request.body;
+        const responseBody = interception.response?.body;
+
+        cy.log(`URL do POST: ${requestUrl}`);
+        cy.log(`Status da resposta: ${statusCode}`);
+        cy.log(`Body da resposta: ${JSON.stringify(responseBody)}`);
+
+        expect(statusCode, 'status da API').to.be.within(200, 299);
+
+        validarPayloadAgendamento(requestBody);
+      }
+    );
+
+    validarSemErroGrave();
+
+    cy.get('body', { timeout: 30000 })
+      .invoke('text')
+      .should(
+        'match',
+        /agendamento|sucesso|salvo|criado|Listagem de agendamentos/i
+      );
+  });
+});
