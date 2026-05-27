@@ -2,7 +2,7 @@ describe('Atendentes - Cadastro', () => {
   beforeEach(() => {
   cy.clearCookies();
   cy.clearLocalStorage();
-});
+  });
   const timestamp = Date.now();
   const nomeAtendente = `E2E Atendente ${timestamp}`;
   const emailAtendente = `e2e.atendente.${timestamp}@teste.com`;
