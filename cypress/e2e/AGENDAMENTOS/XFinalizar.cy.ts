@@ -104,39 +104,43 @@ describe('Agendamentos - Finalizar agendamento criado no mês', () => {
     });
   }
 
-  function procurarCriadoNoMes(mesAnoInicial: string, tentativa = 0) {
-    const maxTentativas = 35;
+  function procurarCriadoNoMes(
+  mesAnoInicial: string,
+  tentativa: number = 0
+): Cypress.Chainable<boolean> {
 
-    if (tentativa >= maxTentativas) {
-      cy.log('Chegou ao limite de dias pesquisados e não encontrou agendamento Criado.');
-      return cy.wrap(false);
+  const maxTentativas = 35;
+
+  if (tentativa >= maxTentativas) {
+    cy.log('Chegou ao limite de dias pesquisados e não encontrou agendamento Criado.');
+    return cy.wrap(false);
+  }
+
+  cy.log(`Procurando agendamento Criado. Tentativa: ${tentativa + 1}`);
+
+  return tentarAbrirAgendamentoCriado().then((encontrou: boolean) => {
+
+    if (encontrou) {
+      return cy.wrap(true);
     }
 
-    cy.log(`Procurando agendamento Criado. Tentativa: ${tentativa + 1}`);
+    return obterMesAnoAtual().then((mesAnoAtual: string) => {
 
-    return tentarAbrirAgendamentoCriado().then((encontrou) => {
-      if (encontrou) {
-        return cy.wrap(true);
+      if (mesAnoAtual && mesAnoAtual !== mesAnoInicial) {
+        cy.log(`Chegou ao final do mês ${mesAnoInicial} e não encontrou agendamento Criado.`);
+        return cy.wrap(false);
       }
 
-      return obterMesAnoAtual().then((mesAnoAtual) => {
-        if (mesAnoAtual && mesAnoAtual !== mesAnoInicial) {
-          cy.log(`Chegou ao final do mês ${mesAnoInicial} e não encontrou agendamento Criado.`);
-          return cy.wrap(false);
-        }
+      avancarUmDia();
+      cy.wait(1500);
 
-        avancarUmDia();
+      garantirModoLista();
+      cy.wait(500);
 
-        cy.wait(1500);
-
-        garantirModoLista();
-
-        cy.wait(500);
-
-        return procurarCriadoNoMes(mesAnoInicial, tentativa + 1);
-      });
+      return procurarCriadoNoMes(mesAnoInicial, tentativa + 1);
     });
-  }
+  });
+}
 
   beforeEach(() => {
     cy.login();
@@ -165,7 +169,7 @@ describe('Agendamentos - Finalizar agendamento criado no mês', () => {
     obterMesAnoAtual().then((mesAnoInicial) => {
       cy.log(`Mês inicial: ${mesAnoInicial}`);
 
-      procurarCriadoNoMes(mesAnoInicial).then((encontrou) => {
+      procurarCriadoNoMes(mesAnoInicial).then((encontrou: boolean) => {
         if (!encontrou) {
           cy.log('Nenhum agendamento Criado encontrado. Teste encerrado sem erro.');
           return;
