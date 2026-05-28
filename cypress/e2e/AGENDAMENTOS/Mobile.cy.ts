@@ -1,25 +1,3 @@
-/*
-Esse teste cria um agendamento pelo Painel do Cliente.
-
-Fluxo:
-1. Fazer login no painel administrativo
-2. Clicar em Configurações
-3. Clicar em Personalização
-4. Capturar a URL pública do Painel do Cliente
-5. Acessar o Painel do Cliente
-6. Selecionar 1 ou 2 serviços com Corte, Servi, Serviço, Servicio, Barba ou valor
-7. Clicar em Continuar
-8. No carrinho, clicar em Continuar
-9. Selecionar atendente
-10. Clicar em Continuar
-11. Selecionar data
-12. Clicar em Continuar
-13. Selecionar horário
-14. Clicar em Continuar
-15. Preencher nome e telefone
-16. Confirmar agendamento
-*/
-
 Cypress.on('uncaught:exception', (err) => {
   const mensagem = [
     err?.name || '',
@@ -49,17 +27,10 @@ Cypress.on('uncaught:exception', (err) => {
   return true;
 });
 
-describe('Painel do Cliente - Criar agendamento Mobile', () => {
-  beforeEach(() => {
-  cy.clearCookies();
-  cy.clearLocalStorage();
-});
-  const timestamp = Date.now();
+describe('Agendamentos - Cadastro', () => {
+  let dataSelecionadaEhHoje = false;
 
-  const nomeCliente = `Cliente Painel ${timestamp}`;
-  const telefoneCliente = gerarTelefoneAleatorio();
-
-  let urlPainelCliente = '';
+  const telefone = gerarTelefoneAleatorio();
 
   function gerarTelefoneAleatorio() {
     const ddd = '49';
@@ -70,880 +41,678 @@ describe('Painel do Cliente - Criar agendamento Mobile', () => {
   }
 
   function limparTexto(texto: string) {
-    return String(texto || '').replace(/\s+/g, ' ').trim();
+    return texto.replace(/\s+/g, ' ').trim();
   }
 
   function fecharCookiesSeAparecer() {
     cy.get('body').then(($body) => {
-      if ($body.text().includes('Entendi')) {
-        cy.contains('Entendi').click({ force: true });
+      const texto = $body.text();
+
+      const apareceuCookies =
+        /cookies|utilizamos cookies|melhorar sua experiência|política de privacidade/i.test(
+          texto
+        );
+
+      if (!apareceuCookies && !/Entendi|Aceitar|Aceito|OK|Concordo/i.test(texto)) {
+        return;
+      }
+
+      const botaoCookie = $body
+        .find('button:visible, .q-btn:visible, [role="button"]:visible')
+        .toArray()
+        .find((botao) => {
+          const textoBotao = limparTexto(Cypress.$(botao).text());
+
+          return /Entendi|Aceitar|Aceito|OK|Concordo/i.test(textoBotao);
+        });
+
+      if (botaoCookie) {
+        cy.wrap(botaoCookie).click({ force: true });
       }
     });
   }
 
-  function abrirPersonalizacao() {
-    cy.login('iphone-x');
+  function abrirAgenda() {
+    cy.contains(/Agenda/i, { timeout: 30000 })
+      .scrollIntoView()
+      .click({ force: true });
+
+    cy.contains(/Listagem de agendamentos/i, { timeout: 30000 })
+      .should('be.visible');
+
+    fecharCookiesSeAparecer();
+  }
+
+  function abrirCadastroAgendamento() {
+    cy.contains(/Cadastrar agendamento/i, { timeout: 30000 })
+      .should('be.visible')
+      .click({ force: true });
+
+    cy.contains(/Escolha o servi[çc]o/i, { timeout: 30000 })
+      .should('exist');
+
+    fecharCookiesSeAparecer();
+  }
+
+  function obterCardsServico($body: JQuery<HTMLElement>) {
+    const encontrados: HTMLElement[] = [];
+    const vistos = new Set<HTMLElement>();
+
+    $body
+      .find('*:visible')
+      .toArray()
+      .forEach((el) => {
+        const elemento = el as HTMLElement;
+        const texto = limparTexto(Cypress.$(elemento).text());
+
+        if (!texto || texto.length > 220) {
+          return;
+        }
+
+        const rect = elemento.getBoundingClientRect();
+
+        const temTamanhoPossivel =
+          rect.width >= 20 &&
+          rect.width <= 700 &&
+          rect.height >= 10 &&
+          rect.height <= 420;
+
+        const contemPalavraServico =
+          /Corte|Servi|Servi[çc]o|Servicio/i.test(texto);
+
+        const contemValorServico =
+          /(?:R\$|\$|₲|G|Gs\.?|G\$)\s*[\d.,]+|[\d.,]+\s*(?:R\$|\$|₲|G|Gs\.?|G\$)/i.test(
+            texto
+          );
+
+        const naoEhTituloBuscaOuMenu =
+          !/Escolha o servi[çc]o|Buscar servi[çc]o|Buscar servicio|Exibir mais|Mostrar mais|Dashboard|Agenda|Clientes|Atendentes|Produtos|Configura[çc][õo]es|Termos de uso|Política de privacidade|cookies|Entendi/i.test(
+            texto
+          );
+
+        if (
+          !temTamanhoPossivel ||
+          !naoEhTituloBuscaOuMenu ||
+          (!contemPalavraServico && !contemValorServico)
+        ) {
+          return;
+        }
+
+        const clicavel =
+          Cypress.$(elemento)
+            .closest(
+              '.q-card, .q-item, button, [role="button"], [class*="card"], [class*="item"]'
+            )
+            .get(0) || elemento;
+
+        if (!vistos.has(clicavel)) {
+          vistos.add(clicavel);
+          encontrados.push(clicavel);
+        }
+      });
+
+    return encontrados.sort((a, b) => {
+      const textoA = limparTexto(Cypress.$(a).text());
+      const textoB = limparTexto(Cypress.$(b).text());
+
+      const scoreA =
+        (/Corte|Servi|Servi[çc]o|Servicio/i.test(textoA) ? 100 : 0) +
+        (/(?:R\$|\$|₲|G|Gs\.?|G\$)\s*[\d.,]+/i.test(textoA) ? 80 : 0) -
+        textoA.length;
+
+      const scoreB =
+        (/Corte|Servi|Servi[çc]o|Servicio/i.test(textoB) ? 100 : 0) +
+        (/(?:R\$|\$|₲|G|Gs\.?|G\$)\s*[\d.,]+/i.test(textoB) ? 80 : 0) -
+        textoB.length;
+
+      return scoreB - scoreA;
+    });
+  }
+
+  function selecionarServico(tentativa = 0): Cypress.Chainable {
+    cy.get('body', { timeout: 30000 })
+      .invoke('text')
+      .should('match', /Escolha o servi[çc]o/i);
 
     fecharCookiesSeAparecer();
 
-    cy.contains(/Configura[çc][õo]es/i, { timeout: 30000 })
-      .click({ force: true });
-
-    cy.contains(/Personaliza[çc][aã]o/i, { timeout: 30000 })
-      .click({ force: true });
-
     cy.wait(1000);
 
-    cy.get('body', { timeout: 30000 })
-      .invoke('text')
-      .should(
-        'match',
-        /URL do site|URL de tu sitio web|URL del sitio|Personaliza[çc][aã]o|Personalización|Dados do site|Datos del sitio/i
-      );
-  }  
+    return cy.get('body').then(($body) => {
+      const cardsServico = obterCardsServico($body);
 
-function clicarLinkPainelCliente() {
-  cy.location().then((location) => {
-    const slug = location.pathname.split('/').filter(Boolean)[0];
+      if (cardsServico.length === 0) {
+        cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 1200)}`);
+        cy.screenshot('servico-nao-encontrado');
 
-    if (!slug) {
-      throw new Error(
-        `Não foi possível obter o slug da empresa pela URL atual: ${location.pathname}`
-      );
-    }
+        throw new Error(
+          'Nenhum card de serviço encontrado com Corte, Servi, Serviço, Servicio, R$, $, ₲ ou G.'
+        );
+      }
 
-    const dominioPublico = location.host.includes('hom')
-      ? 'https://app-hom.sgagenda.com'
-      : 'https://app.sgagenda.com';
+      const cardServico = cardsServico[tentativa] || cardsServico[0];
 
-    const urlCorreta = `${dominioPublico}/${slug}`;
+      if (!cardServico) {
+        throw new Error('Card de serviço inválido.');
+      }
 
-    cy.log(`Abrindo URL pública correta: ${urlCorreta}`);
+      const textoServico = limparTexto(Cypress.$(cardServico).text());
 
-    expect(urlCorreta).to.eq(`${dominioPublico}/${slug}`);
+      cy.log(`Serviço escolhido: ${textoServico}`);
 
-    cy.visit(urlCorreta);
-  });
-
-  cy.get('body', { timeout: 30000 })
-    .invoke('text')
-    .should(
-      'match',
-      /Selecione os servi[çc]os|Selecciona los servicios|Escolha um ou mais servi[çc]os|Elige uno o más servicios|servi[çc]os que deseja agendar|servicios que deseas reservar|Escolha os servi[çc]os|Choose.*services|Select.*services/i
-    );
-
-  fecharCookiesSeAparecer();
-}
-
-  function normalizarTextoBusca(texto: string) {
-  return limparTexto(texto)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase();
-}
-
-function obterCardsServico($body: JQuery<HTMLElement>) {
-  const encontrados: HTMLElement[] = [];
-  const chavesVistas = new Set<string>();
-
-  const candidatos = $body
-    .find(
-      'article:visible, button:visible, [role="button"]:visible, .q-card:visible, .p-card:visible, [class*="card"]:visible, div:visible'
-    )
-    .toArray();
-
-  candidatos.forEach((el) => {
-    const elemento = el as HTMLElement;
-
-    const textoOriginal = limparTexto(Cypress.$(elemento).text());
-    const texto = normalizarTextoBusca(textoOriginal);
-
-    if (!textoOriginal || textoOriginal.length > 450) {
-      return;
-    }
-
-    const rect = elemento.getBoundingClientRect();
-
-    const temTamanhoDeCard =
-      rect.width >= 80 &&
-      rect.height >= 40 &&
-      rect.height <= 500;
-
-    const contemPalavraServico =
-      /CORTE|CORT|SERVI|SERVICO|SERVICIO|BARBA|SOBRANCELHA|CEJAS|CABELEIREIRO|PELUQUERIA|PELUQUERO/.test(
-        texto
-      );
-
-    const contemValor =
-      /(?:R\$|\$|₲|G|GS\.?|G\$)\s*[\d.,]+|[\d.,]+\s*(?:R\$|\$|₲|G|GS\.?|G\$)/.test(
-        texto
-      );
-
-    const contemDuracao = /\d+\s*MIN/.test(texto);
-
-    const naoEhResumoOuTitulo =
-      !/SELECIONE OS SERVICOS|ESCOLHA UM OU MAIS|0 SERVICO\(S\)|1 SERVICO|2 SERVICOS|TODOS|CONTINUAR|HISTORICO|INICIO|TOTAL|CARRINHO|CARRO|VOLVER|VOLTAR/.test(
-        texto
-      );
-
-    const pareceCardReal = contemPalavraServico || (contemValor && contemDuracao);
-
-    if (!temTamanhoDeCard || !naoEhResumoOuTitulo || !pareceCardReal) {
-      return;
-    }
-
-    const clicavel =
-      Cypress.$(elemento)
-        .closest(
-          'article, button, [role="button"], .q-card, .p-card, [class*="card"], [class*="service"], [class*="item"]'
-        )
-        .get(0) || elemento;
-
-    const chaveServico = normalizarTextoBusca(Cypress.$(clicavel).text())
-      .replace(/SELECIONADO|ADICIONAR|REMOVER|CHECK/gi, '')
-      .trim()
-      .slice(0, 140);
-
-    if (!chavesVistas.has(chaveServico)) {
-      chavesVistas.add(chaveServico);
-      encontrados.push(clicavel);
-    }
-  });
-
-  return encontrados.sort((a, b) => {
-    const textoA = normalizarTextoBusca(Cypress.$(a).text());
-    const textoB = normalizarTextoBusca(Cypress.$(b).text());
-
-    const scoreA =
-      (/CORTE|CORT|SERVI|SERVICO|SERVICIO|BARBA|SOBRANCELHA|CEJAS/.test(textoA)
-        ? 100
-        : 0) +
-      (/(?:R\$|\$|₲|G|GS\.?|G\$)\s*[\d.,]+/.test(textoA) ? 80 : 0) +
-      (/\d+\s*MIN/.test(textoA) ? 40 : 0) -
-      textoA.length * 0.1;
-
-    const scoreB =
-      (/CORTE|CORT|SERVI|SERVICO|SERVICIO|BARBA|SOBRANCELHA|CEJAS/.test(textoB)
-        ? 100
-        : 0) +
-      (/(?:R\$|\$|₲|G|GS\.?|G\$)\s*[\d.,]+/.test(textoB) ? 80 : 0) +
-      (/\d+\s*MIN/.test(textoB) ? 40 : 0) -
-      textoB.length * 0.1;
-
-    return scoreB - scoreA;
-  });
-}
-
-function selecionarServicosPainelCliente() {
-  cy.get('body', { timeout: 30000 })
-    .invoke('text')
-    .should(
-      'match',
-      /Selecione os servi[çc]os|Selecciona los servicios|Escolha um ou mais servi[çc]os|Elige uno o más servicios|servi[çc]os que deseja agendar|servicios que deseas reservar|Escolha os servi[çc]os|Choose.*services|Select.*services/i
-    );
-
-  cy.wait(3000);
-
-  cy.get('body').then(($body) => {
-    const cardsServico = obterCardsServico($body);
-
-    if (cardsServico.length === 0) {
-      cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 2000)}`);
-      cy.screenshot('painel-cliente-servicos-nao-encontrados');
-
-      throw new Error(
-        'Nenhum serviço encontrado. A busca aceita maiúsculas/minúsculas, Corte, Servi, Serviço, Servicio, Barba, valor em R$, $, ₲, G, Gs, BRL, PYG e cards com valor + duração.'
-      );
-    }
-
-    const quantidadeParaSelecionar = cardsServico.length > 1 ? 2 : 1;
-    const servicosSelecionados = cardsServico.slice(0, quantidadeParaSelecionar);
-
-    cy.log(`Quantidade de serviços a selecionar: ${quantidadeParaSelecionar}`);
-
-    servicosSelecionados.forEach((card, index) => {
-      const textoServico = limparTexto(Cypress.$(card).text());
-
-      cy.log(`Selecionando serviço ${index + 1}: ${textoServico}`);
-
-      cy.wrap(card)
+      cy.wrap(cardServico)
         .scrollIntoView()
         .click('center', { force: true });
 
-      cy.wait(700);
-    });
-  });
+      cy.wait(1500);
 
-  cy.wait(1000);
+      return cy.get('body').then(($bodyDepois) => {
+        const textoDepois = $bodyDepois.text();
 
-  cy.get('body', { timeout: 30000 }).then(($body) => {
-    const textoOriginal = limparTexto($body.text());
-    const texto = normalizarTextoBusca(textoOriginal);
+        if (/Escolha o profissional/i.test(textoDepois)) {
+          return cy.wrap(null);
+        }
 
-    cy.log(`Texto após selecionar serviços: ${textoOriginal.slice(0, 1200)}`);
+        if (tentativa + 1 < cardsServico.length && tentativa < 5) {
+          cy.log('Serviço clicado não avançou. Tentando próximo card.');
 
-    const temContinuar = /CONTINUAR|CONTINUE|SIGUIENTE|NEXT/.test(texto);
+          return selecionarServico(tentativa + 1);
+        }
 
-    const ficouComZeroServico =
-      /0\s*(SERVICO|SERVICIO)\(S\)?\s*(R\$|BRL|PYG|\$|₲|G|GS\.?)?\s*0,00/.test(
-        texto
-      );
+        cy.screenshot('servico-clicado-mas-nao-avancou');
 
-    if (ficouComZeroServico) {
-      cy.screenshot('servicos-nao-foram-selecionados');
-
-      throw new Error(
-        'Os serviços foram clicados, mas o contador continuou em 0 serviço(s).'
-      );
-    }
-
-    const matchesQuantidade = Array.from(
-      texto.matchAll(/(\d+)\s*(SERVICO|SERVICIO)\(S\)?/g)
-    );
-
-    const quantidades = matchesQuantidade
-      .map((match) => Number(match[1]))
-      .filter((numero) => Number.isFinite(numero));
-
-    const temQuantidadeMaiorQueZero = quantidades.some(
-      (quantidade) => quantidade > 0
-    );
-
-    if (!temQuantidadeMaiorQueZero && !temContinuar) {
-      cy.screenshot('contador-servicos-nao-encontrado');
-
-      throw new Error(
-        `Não foi possível validar quantidade de serviços selecionados. Texto: ${textoOriginal.slice(
-          0,
-          1200
-        )}`
-      );
-    }
-
-    expect(
-      temQuantidadeMaiorQueZero || temContinuar,
-      'serviço selecionado ou botão Continuar disponível'
-    ).to.eq(true);
-  });
-}
-
-  function clicarContinuar() {
-  cy.get('body', { timeout: 30000 }).then(($body) => {
-    const botoesContinuar = $body
-      .find(
-        'button:visible, .q-btn:visible, .p-button:visible, [role="button"]:visible'
-      )
-      .toArray()
-      .filter((botao) => {
-        const textoBotao = limparTexto(Cypress.$(botao).text());
-
-        const estaDesabilitado =
-          botao.hasAttribute('disabled') ||
-          Cypress.$(botao).attr('aria-disabled') === 'true' ||
-          Cypress.$(botao).hasClass('disabled') ||
-          Cypress.$(botao).hasClass('q-btn--disabled') ||
-          Cypress.$(botao).hasClass('p-disabled') ||
-          Cypress.$(botao).is(':disabled');
-
-        return (
-          /Continuar|Continue|Avançar|Avancar|Siguiente|Próximo|Proximo|Next/i.test(
-            textoBotao
-          ) && !estaDesabilitado
+        throw new Error(
+          `Serviço foi clicado, mas a tela não avançou para profissional. Serviço: ${textoServico}`
         );
-      }) as HTMLElement[];
+      });
+    });
+  }
 
-    if (botoesContinuar.length === 0) {
-      cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 1500)}`);
-      cy.screenshot('botao-continuar-nao-encontrado');
+  function obterCardsProfissional($body: JQuery<HTMLElement>) {
+  const tituloProfissional = $body
+    .find('*:visible')
+    .toArray()
+    .find((el) => {
+      const texto = limparTexto(Cypress.$(el).text());
 
-      throw new Error(
-        'Botão Continuar não está habilitado. Verifique se serviço/atendente/data/horário foi selecionado.'
-      );
-    }
-
-    const botao =
-      botoesContinuar[botoesContinuar.length - 1] || botoesContinuar[0];
-
-    if (!botao) {
-      throw new Error('Botão Continuar inválido.');
-    }
-
-    cy.wrap(botao)
-      .scrollIntoView()
-      .should('be.visible')
-      .click({ force: true });
-  });
-
-  cy.wait(1000);
-
-  fecharCookiesSeAparecer();
-}
-
- function selecionarAtendente() {
-  cy.get('body', { timeout: 30000 })
-    .invoke('text')
-    .should(
-      'match',
-      /Escolha seu atendente|Choose your attendant|Escolha o atendente|Selecione o profissional|Atendente|Attendant|Profissional|Profesional|Elige tu profesional|Selecciona un profesional/i
-    );
-
-  cy.wait(1500);
-
-  cy.get('body').then(($body) => {
-    const body = $body.get(0);
-
-    if (!body) {
-      throw new Error('Body da página não encontrado.');
-    }
-
-    const regexTituloProfissional =
-      /Escolha seu atendente|Choose your attendant|Escolha o atendente|Selecione o profissional|Elige tu profesional|Selecciona un profesional/i;
-
-    const tituloProfissional = Array.from(
-      body.querySelectorAll<HTMLElement>('*')
-    ).find((el) => {
-      const texto = limparTexto(el.textContent || '');
-
-      return Cypress.$(el).is(':visible') && regexTituloProfissional.test(texto);
+      return /^Escolha o profissional$/i.test(texto);
     });
 
-    if (!tituloProfissional) {
-      cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 2500)}`);
-      cy.screenshot('titulo-profissional-nao-encontrado');
+  const topTitulo = tituloProfissional
+    ? tituloProfissional.getBoundingClientRect().top
+    : 0;
 
-      throw new Error('Título da etapa de profissional não encontrado.');
-    }
+  return $body
+    .find('*:visible')
+    .toArray()
+    .filter((el) => {
+      const elemento = el as HTMLElement;
+      const texto = limparTexto(Cypress.$(elemento).text());
+      const rect = elemento.getBoundingClientRect();
 
-    const topTitulo = tituloProfissional.getBoundingClientRect().top;
-
-    const containerProfissional =
-      Cypress.$(tituloProfissional)
-        .parents()
-        .toArray()
-        .find((parent) => {
-          const texto = limparTexto(parent.textContent || '');
-          const normalizado = normalizarTextoBusca(texto);
-          const rect = parent.getBoundingClientRect();
-
-          const contemTitulo =
-            /ELIGE TU PROFESIONAL|CHOOSE YOUR ATTENDANT|SELECCIONA UN PROFESIONAL|ESCOLHA SEU ATENDENTE|SELECIONE O PROFISSIONAL/.test(
-              normalizado
-            );
-
-          const contemBotoesEtapa =
-            /CONTINUAR|CONTINUE|SIGUIENTE|NEXT/.test(normalizado) &&
-            /VOLVER|VOLTAR|BACK/.test(normalizado);
-
-          const tamanhoValido =
-            rect.width >= 250 &&
-            rect.height >= 220 &&
-            rect.height <= 900;
-
-          return contemTitulo && contemBotoesEtapa && tamanhoValido;
-        }) || body;
-
-    const candidatos = Array.from(
-      containerProfissional.querySelectorAll<HTMLElement>(
-        'button, [role="button"], article, .q-card, .p-card'
-      )
-    ).filter((el) => {
-      const textoOriginal = limparTexto(el.textContent || '');
-      const texto = normalizarTextoBusca(textoOriginal);
-      const rect = el.getBoundingClientRect();
-
-      const estaVisivel = Cypress.$(el).is(':visible');
-
-      const estaDepoisDoTitulo = rect.top > topTitulo;
+      const depoisDoTitulo = rect.top >= topTitulo - 10;
 
       const tamanhoValido =
-        rect.width >= 80 &&
-        rect.width <= 750 &&
-        rect.height >= 30 &&
-        rect.height <= 260;
+        rect.width >= 20 &&
+        rect.width <= 900 &&
+        rect.height >= 10 &&
+        rect.height <= 450;
 
-      const textoValido =
-        textoOriginal.length >= 3 &&
-        textoOriginal.length <= 140;
+      const pareceProfissional =
+        /Usuario Paraguai/i.test(texto) ||
+        /E2E\s+Atendente/i.test(texto) ||
+        /Atendente/i.test(texto) ||
+        /Barbeiro/i.test(texto) ||
+        /Peluquero/i.test(texto) ||
+        /^person/i.test(texto) ||
+        /personUsuario/i.test(texto);
 
-      const naoEhMenuHistoricoOuTopo =
-        !/INICIO|HISTORIAL|HISTORICO|ACCEDER AL HISTORIAL|TELEFONO|TELÉFONO|TERMINOS|POLITICA|POLÍTICA|COMPARTILHAR/.test(
-          texto
-        );
-
-      const naoEhCabecalhoResumoOuBotao =
-        !/FINALIZAR RESERVA|FINALIZAR AGENDAMENTO|PROFESIONALFECHAHORARESUMEN|ATENDENTEDATAHORARIORESUMO|FECHAHORARESUMEN|DATAHORARIORESUMO|ELIGE TU PROFESIONAL|SELECCIONA UN PROFESIONAL|ESCOLHA SEU ATENDENTE|SELECIONE O PROFISSIONAL|SERVICIOS|SERVIÇOS|SERVICOS|VOLVER|VOLTAR|CONTINUAR|SIGUIENTE|NEXT/.test(
-          texto
-        );
-
-      const naoEhServicoCategoriaOuValor =
-        !/CORTE|CORTES|SERVI|SERVICO|SERVIÇO|SERVICIO|BARBA|SOBRANCELHA|CEJAS|CABELLO|CABELO|LAVADO|SECADO|TATOO|PEDI|CURE|LIMPEZA|PELE|DESDE|CONSULTAR|DISPONIBILIDAD|DISPONIBILIDADE|DOMICILIO|DOMICÍLIO|BRL|R\$|\$|₲|GS\.?|G\$|\d+\s*MIN/.test(
-          texto
-        );
-
-      const pareceNomeProfissional =
-        /^[A-ZÁÉÍÓÚÃÕÇÑ][A-ZÁÉÍÓÚÃÕÇÑa-záéíóúãõçñ]+(?:\s+[A-ZÁÉÍÓÚÃÕÇÑa-záéíóúãõçñ]+)+/.test(
-          textoOriginal
-        ) ||
-        /USUARIO|USUÁRIO|ATENDENTE|ATTENDANT|PROFISSIONAL|PROFESIONAL|PELUQUERO|BARBEIRO|SGBR|PAGAMENTOS/.test(
-          texto
-        );
-
-      const naoEstaDesabilitado =
-        !el.hasAttribute('disabled') &&
-        Cypress.$(el).attr('aria-disabled') !== 'true' &&
-        !Cypress.$(el).hasClass('disabled') &&
-        !Cypress.$(el).hasClass('p-disabled') &&
-        !Cypress.$(el).hasClass('q-btn--disabled') &&
-        !Cypress.$(el).is(':disabled');
-
-      return (
-        estaVisivel &&
-        estaDepoisDoTitulo &&
-        tamanhoValido &&
-        textoValido &&
-        pareceNomeProfissional &&
-        naoEhMenuHistoricoOuTopo &&
-        naoEhCabecalhoResumoOuBotao &&
-        naoEhServicoCategoriaOuValor &&
-        naoEstaDesabilitado
-      );
-    });
-
-    if (candidatos.length === 0) {
-      cy.log(`Texto da etapa profissional: ${limparTexto(Cypress.$(containerProfissional).text()).slice(0, 2500)}`);
-      cy.screenshot('profissional-painel-cliente-nao-encontrado');
-
-      throw new Error(
-        'Nenhum profissional real encontrado. O teste ignorou histórico, serviços, categorias, valores e botões.'
-      );
-    }
-
-    const profissionalEscolhido = candidatos[0];
-
-    const textoProfissional = limparTexto(profissionalEscolhido.textContent || '');
-
-    cy.log(`Profissional escolhido: ${textoProfissional}`);
-
-    cy.wrap(profissionalEscolhido)
-      .scrollIntoView()
-      .click('center', { force: true });
-  });
-
-  cy.wait(1000);
-
-  cy.get('body', { timeout: 30000 }).then(($body) => {
-    const botoesContinuarHabilitados = $body
-      .find(
-        'button:visible, .p-button:visible, .q-btn:visible, [role="button"]:visible'
-      )
-      .toArray()
-      .filter((botao) => {
-        const textoBotao = limparTexto(Cypress.$(botao).text());
-
-        const desabilitado =
-          botao.hasAttribute('disabled') ||
-          Cypress.$(botao).attr('aria-disabled') === 'true' ||
-          Cypress.$(botao).hasClass('disabled') ||
-          Cypress.$(botao).hasClass('p-disabled') ||
-          Cypress.$(botao).hasClass('q-btn--disabled') ||
-          Cypress.$(botao).is(':disabled');
-
-        return /Continuar|Continue|Siguiente|Next/i.test(textoBotao) && !desabilitado;
-      });
-
-    expect(
-      botoesContinuarHabilitados.length,
-      'botão Continuar habilitado após selecionar profissional'
-    ).to.be.greaterThan(0);
-  });
-}
-
-  function selecionarData() {
-  cy.get('body', { timeout: 30000 })
-    .invoke('text')
-    .should(
-      'match',
-      /Escolha a data|Choose your booking date|Escolha uma data|Selecione a data|Data|Datas dispon[ií]veis|Elige la fecha|Selecciona.*fecha|Fecha|Fechas disponibles/i
-    );
-
-  cy.wait(1000);
-
-  cy.get('body').then(($body) => {
-    const body = $body.get(0);
-
-    if (!body) {
-      throw new Error('Body da página não encontrado.');
-    }
-
-    const datas = Array.from(
-      body.querySelectorAll<HTMLElement>(
-        'button, [role="button"], article, .q-card, .p-card, div'
-      )
-    ).filter((el) => {
-      const textoOriginal = limparTexto(el.textContent || '');
-      const texto = normalizarTextoBusca(textoOriginal);
-      const rect = el.getBoundingClientRect();
-
-      const estaVisivel = Cypress.$(el).is(':visible');
-
-      const ehData =
-        /^\d{1,2}\/\d{1,2}/.test(textoOriginal) ||
-        /^\d{1,2}\/\d{1,2}/.test(texto);
-
-      const contemDiaSemana =
-      /SEGUNDA|TERCA|QUARTA|QUINTA|SEXTA|SABADO|DOMINGO|LUNES|MARTES|MIERCOLES|JUEVES|VIERNES|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY/i
-      .test(texto);
-
-      const naoEhCabecalhoOuResumo =
-        !/FINALIZAR RESERVA|FINALIZAR AGENDAMENTO|PROFESIONALFECHAHORARESUMEN|ATENDENTEDATAHORARIORESUMO|FECHA SELECCIONADA|DATA SELECIONADA|SELECIONA UMA DATA|SELECCIONA UNA FECHA|FECHAS DISPONIBLES|DATAS DISPONIVEIS|SERVICIOS|SERVIÇOS|SERVICOS|VOLVER|VOLTAR|CONTINUAR|SIGUIENTE|NEXT/.test(
+      const naoEhMenuOuTitulo =
+        !/Escolha o profissional|Escolha o servi[çc]o|Dashboard|Agenda|Clientes|Atendentes|Produtos|Configura[çc][õo]es|Termos de uso|Política de privacidade|Termos de agendamento|Compartilhar|keyboard_arrow_down|chevron_left|share/i.test(
           texto
         );
 
       const naoEhServico =
-        !/CORTE|SERVICO|SERVIÇO|SERVICIO|BARBA|BRL|R\$|\$|₲|GS\.?|G\$|\d+\s*MIN/.test(
+        !/Corte|Barba|Cejas|Servi[çc]o|Servicio|R\$|₲|\$|G\s*[\d.,]+/i.test(
           texto
         );
 
-      const naoEstaDesabilitado =
-        !el.hasAttribute('disabled') &&
-        Cypress.$(el).attr('aria-disabled') !== 'true' &&
-        !Cypress.$(el).hasClass('disabled') &&
-        !Cypress.$(el).hasClass('p-disabled') &&
-        !Cypress.$(el).hasClass('q-btn--disabled') &&
-        !Cypress.$(el).is(':disabled');
-
-      const tamanhoValido =
-        rect.width >= 35 &&
-        rect.width <= 400 &&
-        rect.height >= 25 &&
-        rect.height <= 160;
-
       return (
-        estaVisivel &&
-        ehData &&
-        contemDiaSemana &&
-        naoEhCabecalhoOuResumo &&
-        naoEhServico &&
-        naoEstaDesabilitado &&
-        tamanhoValido
+        depoisDoTitulo &&
+        tamanhoValido &&
+        pareceProfissional &&
+        naoEhMenuOuTitulo &&
+        naoEhServico
       );
-    });
+    })
+    .sort((a, b) => {
+      const textoA = limparTexto(Cypress.$(a).text());
+      const textoB = limparTexto(Cypress.$(b).text());
 
-    if (datas.length === 0) {
-      cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 2500)}`);
-      cy.screenshot('data-painel-cliente-nao-encontrada');
+      const rectA = a.getBoundingClientRect();
+      const rectB = b.getBoundingClientRect();
 
-      throw new Error(
-        'Nenhuma data disponível encontrada. O teste aceita formatos como 16/5, 18/05, 1/6 e 01/06.'
-      );
+      const scoreA =
+        (/Usuario Paraguai|E2E\s+Atendente|Atendente|Barbeiro|Peluquero/i.test(
+          textoA
+        )
+          ? 100
+          : 0) - rectA.width * rectA.height * 0.0001;
+
+      const scoreB =
+        (/Usuario Paraguai|E2E\s+Atendente|Atendente|Barbeiro|Peluquero/i.test(
+          textoB
+        )
+          ? 100
+          : 0) - rectB.width * rectB.height * 0.0001;
+
+      return scoreB - scoreA;
+    }) as HTMLElement[];
+}
+
+function clicarElementoComEventosReais(elemento: HTMLElement) {
+  return cy.wrap(elemento).scrollIntoView().then(($el) => {
+    const alvo = $el.get(0) as HTMLElement;
+
+    if (!alvo) {
+      throw new Error('Elemento de profissional inválido para clique.');
     }
 
-    const dataEscolhida = datas[0];
+    const rect = alvo.getBoundingClientRect();
 
-    const textoData = limparTexto(dataEscolhida.textContent || '');
+    const x = rect.left + Math.max(5, Math.min(rect.width / 2, rect.width - 5));
+    const y = rect.top + Math.max(5, Math.min(rect.height / 2, rect.height - 5));
 
-    cy.log(`Data escolhida: ${textoData}`);
+    const win = alvo.ownerDocument.defaultView;
 
-    cy.wrap(dataEscolhida)
-      .scrollIntoView()
-      .click('center', { force: true });
-  });
+    if (!win) {
+      throw new Error('Window não disponível para disparar clique.');
+    }
 
-  cy.wait(1000);
-
-  cy.get('body', { timeout: 30000 }).then(($body) => {
-    const botoesContinuarHabilitados = $body
-      .find(
-        'button:visible, .p-button:visible, .q-btn:visible, [role="button"]:visible'
-      )
-      .toArray()
-      .filter((botao) => {
-        const textoBotao = limparTexto(Cypress.$(botao).text());
-
-        const desabilitado =
-          botao.hasAttribute('disabled') ||
-          Cypress.$(botao).attr('aria-disabled') === 'true' ||
-          Cypress.$(botao).hasClass('disabled') ||
-          Cypress.$(botao).hasClass('p-disabled') ||
-          Cypress.$(botao).hasClass('q-btn--disabled') ||
-          Cypress.$(botao).is(':disabled');
-
-        return /Continuar|Continue|Siguiente|Next/i.test(textoBotao) && !desabilitado;
-      });
-
-    expect(
-      botoesContinuarHabilitados.length,
-      'botão Continuar habilitado após selecionar data'
-    ).to.be.greaterThan(0);
+    ['mouseover', 'mousedown', 'mouseup', 'click'].forEach((evento) => {
+      alvo.dispatchEvent(
+        new win.MouseEvent(evento, {
+          bubbles: true,
+          cancelable: true,
+          view: win,
+          clientX: x,
+          clientY: y,
+        })
+      );
+    });
   });
 }
 
-function selecionarHorario() {
+function selecionarProfissional() {
   cy.get('body', { timeout: 30000 })
     .invoke('text')
-    .then((textoOriginal) => {
-      const texto = normalizarTextoBusca(textoOriginal);
+    .should('match', /Escolha o profissional/i);
 
-      const contemTituloHorario =
-        /ESCOLHA O HORARIO|SELECIONE O HORARIO|HORARIOS DISPONIVEIS|HORARIO|HORA/.test(texto) ||
-        /CHOOSE YOUR BOOKING TIME|SELECT A TIME|AVAILABLE TIMES|TIME/.test(texto);
-
-      if (!contemTituloHorario) {
-        cy.log(`Texto da tela: ${textoOriginal.slice(0, 1500)}`);
-        cy.screenshot('titulo-horario-nao-encontrado');
-
-        throw new Error('Tela de seleção de horário não reconhecida.');
-      }
-    });
+  fecharCookiesSeAparecer();
 
   cy.wait(1000);
 
   cy.get('body').then(($body) => {
-    const horarios = $body
-      .find('*:visible')
-      .toArray()
-      .filter((el) => {
-        const texto = limparTexto(Cypress.$(el).text());
-        const rect = el.getBoundingClientRect();
+    const cardsProfissional = obterCardsProfissional($body);
 
-        const ehHorario = /^\d{1,2}:\d{2}$/.test(texto);
+    if (cardsProfissional.length === 0) {
+      cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 1200)}`);
+      cy.screenshot('mobile-profissional-nao-encontrado');
 
-        const tamanhoValido =
-          rect.width >= 30 &&
-          rect.width <= 200 &&
-          rect.height >= 20 &&
-          rect.height <= 100;
-
-        const naoEhCabecalho =
-          !/SELECT A TIME|AVAILABLE TIMES|CHOOSE YOUR BOOKING TIME|TIME|CONTINUE|NEXT/i.test(
-            normalizarTextoBusca(texto)
-          );
-
-        return ehHorario && tamanhoValido && naoEhCabecalho;
-      }) as HTMLElement[];
-
-    if (horarios.length === 0) {
-      cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 1500)}`);
-      cy.screenshot('horario-painel-cliente-nao-encontrado');
-
-      throw new Error('Nenhum horário disponível encontrado.');
+      throw new Error(
+        'Nenhum card de profissional foi encontrado após selecionar o serviço.'
+      );
     }
 
-    const horario = horarios[0];
+    const profissionalPreferido = cardsProfissional.find((card) => {
+      const texto = limparTexto(Cypress.$(card).text());
 
-    const textoHorario = limparTexto(Cypress.$(horario).text());
+      return /Usuario Paraguai|E2E\s+Atendente|Atendente|Barbeiro|Peluquero/i.test(
+        texto
+      );
+    });
 
-    cy.log(`Horário escolhido: ${textoHorario}`);
+    const cardProfissional = profissionalPreferido || cardsProfissional[0];
 
-    cy.wrap(horario)
+    if (!cardProfissional) {
+      throw new Error('Card de profissional inválido.');
+    }
+
+    const textoProfissional = limparTexto(Cypress.$(cardProfissional).text());
+
+    cy.log(`Profissional escolhido: ${textoProfissional}`);
+
+    const paiClicavel =
+      Cypress.$(cardProfissional)
+        .parents('div, .q-card, .q-item, button, [role="button"]')
+        .toArray()
+        .find((parent) => {
+          const textoPai = limparTexto(Cypress.$(parent).text());
+          const rect = parent.getBoundingClientRect();
+
+          return (
+            /Usuario Paraguai|E2E\s+Atendente|Atendente|Barbeiro|Peluquero|person/i.test(
+              textoPai
+            ) &&
+            rect.width >= 80 &&
+            rect.height >= 20 &&
+            rect.height <= 220
+          );
+        }) as HTMLElement | undefined;
+
+    const clicavel =
+      paiClicavel ||
+      Cypress.$(cardProfissional)
+        .closest('.q-card, .q-item, button, [role="button"], div')
+        .get(0) ||
+      cardProfissional;
+
+    cy.wrap(clicavel)
       .scrollIntoView()
-      .should('be.visible')
       .click('center', { force: true });
   });
 
-  cy.wait(700);
-}
+  cy.wait(1500);
 
-  function preencherDadosClienteEConfirmar() {
+  cy.get('body').then(($body) => {
+    const texto = $body.text();
+
+    if (/Escolha o profissional/i.test(texto) && !/\d{2}\/\d{2}/.test(texto)) {
+      cy.log(
+        'Ainda está na etapa profissional. Tentando clique real no profissional.'
+      );
+
+      const profissionalPorTexto = $body
+        .find('*:visible')
+        .toArray()
+        .find((el) => {
+          const textoElemento = limparTexto(Cypress.$(el).text());
+
+          return /Usuario Paraguai|E2E\s+Atendente|Atendente|Barbeiro|Peluquero|personUsuario/i.test(
+            textoElemento
+          );
+        }) as HTMLElement | undefined;
+
+      if (!profissionalPorTexto) {
+        cy.screenshot('mobile-profissional-segunda-tentativa-nao-encontrado');
+
+        throw new Error(
+          'Profissional apareceu na tela, mas não foi possível localizar elemento clicável.'
+        );
+      }
+
+      const paiClicavel =
+        Cypress.$(profissionalPorTexto)
+          .parents('div, .q-card, .q-item, button, [role="button"]')
+          .toArray()
+          .find((parent) => {
+            const textoPai = limparTexto(Cypress.$(parent).text());
+            const rect = parent.getBoundingClientRect();
+
+            return (
+              /Usuario Paraguai|E2E\s+Atendente|Atendente|Barbeiro|Peluquero|person/i.test(
+                textoPai
+              ) &&
+              rect.width >= 80 &&
+              rect.height >= 20 &&
+              rect.height <= 220
+            );
+          }) as HTMLElement | undefined;
+
+      const clicavel =
+        paiClicavel ||
+        Cypress.$(profissionalPorTexto)
+          .closest('.q-card, .q-item, button, [role="button"], div')
+          .get(0) ||
+        profissionalPorTexto;
+
+      clicarElementoComEventosReais(clicavel);
+
+      cy.wait(1500);
+    }
+  });
+
   cy.get('body', { timeout: 30000 })
     .invoke('text')
     .should(
       'match',
-      /Resumo do agendamento|Resumo|Nome do cliente|Telefone do cliente|Cliente|Telefone|Teléfono|Nombre/i
+      /Selecione o dia da semana|Selecione o dia|Escolha o dia|\d{2}\/\d{2}/i
     );
+}
 
-  cy.wait(1000);
+  function parseDataDiaMes(texto: string) {
+    const match = texto.match(/(\d{2})\/(\d{2})/);
 
-  cy.contains(/Nome do cliente|Nombre del cliente|Nome|Nombre/i, {
-    timeout: 30000,
-  })
-    .scrollIntoView()
-    .should('exist');
-
-  cy.get('body').then(($body) => {
-    const body = $body.get(0);
-
-    if (!body) {
-      throw new Error('Body da página não encontrado.');
+    if (!match) {
+      return null;
     }
 
-    const campos = Array.from(
-      body.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-        'input, textarea'
-      )
-    ).filter((campo) => {
-      const dados = [
-        campo.getAttribute('placeholder') || '',
-        campo.getAttribute('aria-label') || '',
-        campo.getAttribute('name') || '',
-        campo.getAttribute('type') || '',
-        campo.getAttribute('id') || '',
-        campo.getAttribute('class') || '',
-      ].join(' ');
+    const dia = Number(match[1]);
+    const mes = Number(match[2]) - 1;
+    const anoAtual = new Date().getFullYear();
 
-      const rect = campo.getBoundingClientRect();
+    return new Date(anoAtual, mes, dia);
+  }
 
-      const ehCampoInterno =
-        /q-select__focus-target|q-field__focusable-action|hidden/i.test(dados);
+  function parseHorario(texto: string) {
+    const match = texto.match(/(\d{1,2}):(\d{2})h/i);
 
-      const tipo = String(campo.getAttribute('type') || '').toLowerCase();
+    if (!match) {
+      return null;
+    }
 
-      const tipoValido =
-        !tipo || /text|tel|phone|search|email|number/.test(tipo);
+    const hora = Number(match[1]);
+    const minuto = Number(match[2]);
 
-      const estaNoDom = rect.width > 0 && rect.height > 0;
+    return hora * 60 + minuto;
+  }
 
-      return (
-        tipoValido &&
-        estaNoDom &&
-        !ehCampoInterno &&
-        !campo.disabled &&
-        !campo.readOnly
+  function selecionarDataFuturaOuHoje() {
+    return cy.get('body').then(($body) => {
+      const agora = new Date();
+      const hoje = new Date(
+        agora.getFullYear(),
+        agora.getMonth(),
+        agora.getDate()
       );
+
+      const elementosData = $body
+        .find('*:visible')
+        .toArray()
+        .filter((el) => {
+          const texto = Cypress.$(el).text().trim();
+
+          return /^\d{2}\/\d{2}$/.test(texto);
+        });
+
+      const datas = elementosData
+        .map((el) => {
+          const texto = Cypress.$(el).text().trim();
+          const data = parseDataDiaMes(texto);
+
+          return {
+            el,
+            texto,
+            data,
+          };
+        })
+        .filter((item) => item.data !== null) as Array<{
+          el: Element;
+          texto: string;
+          data: Date;
+        }>;
+
+      if (datas.length === 0) {
+        cy.screenshot('datas-nao-apareceram');
+
+        throw new Error(
+          'Nenhuma data disponível foi encontrada para agendamento.'
+        );
+      }
+
+      const datasFuturas = datas.filter((item) => item.data > hoje);
+      const datasHoje = datas.filter(
+        (item) => item.data.getTime() === hoje.getTime()
+      );
+
+      const dataEscolhida = datasFuturas[0] || datasHoje[0] || datas[0];
+
+      if (!dataEscolhida) {
+        throw new Error('Nenhuma data válida foi encontrada.');
+      }
+
+      dataSelecionadaEhHoje =
+        dataEscolhida.data.getTime() === hoje.getTime();
+
+      cy.log(`Data escolhida: ${dataEscolhida.texto}`);
+      cy.log(`Data escolhida é hoje? ${dataSelecionadaEhHoje}`);
+
+      return cy
+        .wrap(dataEscolhida.el)
+        .scrollIntoView()
+        .should('be.visible')
+        .click({ force: true });
     });
+  }
 
-    cy.log(`Campos encontrados no resumo: ${campos.length}`);
+  function selecionarHorarioMaiorQueAgora() {
+    return cy.get('body').then(($body) => {
+      const agora = new Date();
+      const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
 
-    campos.forEach((campo, index) => {
-      cy.log(
-        `Campo ${index}: placeholder="${campo.getAttribute(
-          'placeholder'
-        )}", name="${campo.getAttribute('name')}", type="${campo.getAttribute(
-          'type'
-        )}", class="${campo.getAttribute('class')}"`
-      );
+      const elementosHorario = $body
+        .find('*:visible')
+        .toArray()
+        .filter((el) => {
+          const texto = Cypress.$(el).text().trim();
+
+          return /^\d{1,2}:\d{2}h$/i.test(texto);
+        });
+
+      const horarios = elementosHorario
+        .map((el) => {
+          const texto = Cypress.$(el).text().trim();
+          const minutos = parseHorario(texto);
+
+          return {
+            el,
+            texto,
+            minutos,
+          };
+        })
+        .filter((item) => item.minutos !== null) as Array<{
+          el: Element;
+          texto: string;
+          minutos: number;
+        }>;
+
+      if (horarios.length === 0) {
+        throw new Error('Nenhum horário disponível foi encontrado.');
+      }
+
+      const horariosValidos = dataSelecionadaEhHoje
+        ? horarios.filter((item) => item.minutos > minutosAgora)
+        : horarios;
+
+      if (horariosValidos.length === 0) {
+        throw new Error(
+          'Não existe horário disponível maior que a hora atual para a data selecionada.'
+        );
+      }
+
+      const horarioEscolhido = horariosValidos[0];
+
+      if (!horarioEscolhido) {
+        throw new Error('Nenhum horário válido foi encontrado.');
+      }
+
+      cy.log(`Horário escolhido: ${horarioEscolhido.texto}`);
+
+      return cy
+        .wrap(horarioEscolhido.el)
+        .scrollIntoView()
+        .should('be.visible')
+        .click({ force: true });
     });
+  }
 
-    if (campos.length < 2) {
-      cy.screenshot('campos-resumo-nao-encontrados');
-
-      throw new Error(
-        'Campos de nome e telefone não foram encontrados no resumo do agendamento.'
-      );
-    }
-
-    const campoNome =
-      campos.find((campo) => {
-        const dados = [
-          campo.getAttribute('placeholder') || '',
-          campo.getAttribute('aria-label') || '',
-          campo.getAttribute('name') || '',
-          campo.getAttribute('id') || '',
-        ].join(' ');
-
-        return /nome|nombre|name|cliente|client/i.test(dados);
-      }) || campos[0];
-
-    const campoTelefone =
-      campos.find((campo) => {
-        const dados = [
-          campo.getAttribute('placeholder') || '',
-          campo.getAttribute('aria-label') || '',
-          campo.getAttribute('name') || '',
-          campo.getAttribute('id') || '',
-          campo.getAttribute('type') || '',
-          campo.getAttribute('class') || '',
-        ].join(' ');
-
-        return /telefone|tel[eé]fono|phone|celular|whatsapp|tel/i.test(dados);
-      }) || campos[1];
-
-    if (!campoNome || !campoTelefone) {
-      throw new Error('Campos de nome e telefone não encontrados.');
-    }
-
-    cy.wrap(campoNome)
+  function selecionarCliente() {
+    cy.contains(/Nome do cliente|Nombre del cliente/i, { timeout: 30000 })
       .scrollIntoView()
-      .click({ force: true })
-      .clear({ force: true })
-      .type(nomeCliente, { force: true });
+      .should('be.visible');
 
-    cy.wrap(campoTelefone)
-      .scrollIntoView()
+    cy.get('input:visible')
+      .eq(1)
+      .should('be.visible')
       .click({ force: true })
-      .clear({ force: true })
-      .type(telefoneCliente, { force: true });
+      .type('{selectall}{backspace}CLIENTE', { force: true });
+
+    cy.wait(1000);
+
+    cy.get(
+      '.q-menu:visible .q-item, .q-virtual-scroll__content .q-item, [role="option"]',
+      { timeout: 10000 }
+    )
+      .filter(':visible')
+      .first()
+      .click({ force: true });
+
+    cy.wait(500);
+
+    cy.get('input:visible')
+      .eq(0)
+      .then(($inputTelefone) => {
+        const valorAtual = String($inputTelefone.val() || '').trim();
+
+        if (!valorAtual) {
+          cy.wrap($inputTelefone)
+            .click({ force: true })
+            .type(`{selectall}{backspace}${telefone}`, { force: true });
+        }
+      });
+  }
+
+  beforeEach(() => {
+    cy.login('iphone-x');
+
+    fecharCookiesSeAparecer();
+
+    abrirAgenda();
   });
 
-  cy.wait(700);
+  it('deve cadastrar um agendamento E2E com horário futuro', () => {
+    abrirCadastroAgendamento();
 
-  cy.get('body').then(($body) => {
-    const botoesConfirmar = $body
-      .find(
-        'button:visible, .p-button:visible, .q-btn:visible, [role="button"]:visible'
-      )
-      .toArray()
-      .filter((botao) => {
-        const textoBotao = limparTexto(Cypress.$(botao).text());
+    selecionarServico();
 
-        const estaDesabilitado =
-          botao.hasAttribute('disabled') ||
-          Cypress.$(botao).attr('aria-disabled') === 'true' ||
-          Cypress.$(botao).hasClass('disabled') ||
-          Cypress.$(botao).hasClass('p-disabled') ||
-          Cypress.$(botao).hasClass('q-btn--disabled') ||
-          Cypress.$(botao).is(':disabled');
+    selecionarProfissional();
 
-        return (
-          /Confirmar agendamento|Confirmar|Confirm booking|Agendar|Finalizar/i.test(
-            textoBotao
-          ) && !estaDesabilitado
-        );
-      }) as HTMLElement[];
+    selecionarDataFuturaOuHoje();
 
-    if (botoesConfirmar.length === 0) {
-      cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 1500)}`);
-      cy.screenshot('botao-confirmar-agendamento-nao-encontrado');
+    cy.wait(2000);
 
-      throw new Error(
-        'Botão Confirmar agendamento não encontrado ou desabilitado.'
-      );
-    }
+    cy.contains(/Hor[aá]rios dispon[ií]veis|Horarios disponibles/i, {
+      timeout: 30000,
+    })
+      .scrollIntoView()
+      .should('be.visible');
 
-    const botaoConfirmar =
-      botoesConfirmar[botoesConfirmar.length - 1] || botoesConfirmar[0];
+    selecionarHorarioMaiorQueAgora();
 
-    if (!botaoConfirmar) {
-      throw new Error('Botão Confirmar agendamento inválido.');
-    }
+    cy.wait(1000);
 
-    cy.wrap(botaoConfirmar)
+    selecionarCliente();
+
+    cy.contains(/Gravar|Salvar|Agendar|Guardar/i, { timeout: 30000 })
       .scrollIntoView()
       .should('be.visible')
       .click({ force: true });
-  });
-}
-
-  it('Deve criar agendamento pelo Painel do Cliente usando a URL da personalização.', () => {
-    abrirPersonalizacao();
-
-    clicarLinkPainelCliente()
-
-    selecionarServicosPainelCliente();
-
-    clicarContinuar();
-
-    clicarContinuar();
-
-    selecionarAtendente();
-
-    clicarContinuar();
-
-    selecionarData();
-
-    clicarContinuar();
-
-    selecionarHorario();
-
-    clicarContinuar();
-
-    preencherDadosClienteEConfirmar();
 
     cy.get('body', { timeout: 30000 })
       .invoke('text')
       .should(
         'match',
-        /agendamento confirmado|booking confirmed|agendamento realizado|sucesso|confirmado|obrigado|reserva confirmada|agendado com sucesso/i
+        /agendamento|sucesso|salvo|criado|Listagem de agendamentos|guardado|creado/i
       );
   });
 });

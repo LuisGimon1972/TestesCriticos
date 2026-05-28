@@ -49,7 +49,7 @@ Cypress.on('uncaught:exception', (err) => {
   return true;
 });
 
-describe('Painel do Cliente - Criar agendamento', () => {
+describe('Painel do Cliente - Criar agendamento Mobile', () => {
   beforeEach(() => {
   cy.clearCookies();
   cy.clearLocalStorage();
@@ -282,7 +282,7 @@ function selecionarServicosPainelCliente() {
 
     cy.log(`Texto após selecionar serviços: ${textoOriginal.slice(0, 1200)}`);
 
-    const temContinuar = /CONTINUAR|SIGUIENTE|NEXT/.test(texto);
+    const temContinuar = /CONTINUAR|CONTINUE|SIGUIENTE|NEXT/.test(texto);
 
     const ficouComZeroServico =
       /0\s*(SERVICO|SERVICIO)\(S\)?\s*(R\$|BRL|PYG|\$|₲|G|GS\.?)?\s*0,00/.test(
@@ -346,7 +346,7 @@ function selecionarServicosPainelCliente() {
           Cypress.$(botao).is(':disabled');
 
         return (
-          /Continuar|Avançar|Avancar|Siguiente|Próximo|Proximo|Next/i.test(
+          /Continuar|Continue|Avançar|Avancar|Siguiente|Próximo|Proximo|Next/i.test(
             textoBotao
           ) && !estaDesabilitado
         );
@@ -384,7 +384,7 @@ function selecionarServicosPainelCliente() {
     .invoke('text')
     .should(
       'match',
-      /Escolha seu atendente|Escolha o atendente|Selecione o profissional|Atendente|Profissional|Profesional|Elige tu profesional|Selecciona un profesional/i
+      /Escolha seu atendente|Choose your attendant|Escolha o atendente|Selecione o profissional|Atendente|Attendant|Profissional|Profesional|Elige tu profesional|Selecciona un profesional/i
     );
 
   cy.wait(1500);
@@ -397,7 +397,7 @@ function selecionarServicosPainelCliente() {
     }
 
     const regexTituloProfissional =
-      /Escolha seu atendente|Escolha o atendente|Selecione o profissional|Elige tu profesional|Selecciona un profesional/i;
+      /Escolha seu atendente|Choose your attendant|Escolha o atendente|Selecione o profissional|Elige tu profesional|Selecciona un profesional/i;
 
     const tituloProfissional = Array.from(
       body.querySelectorAll<HTMLElement>('*')
@@ -426,12 +426,12 @@ function selecionarServicosPainelCliente() {
           const rect = parent.getBoundingClientRect();
 
           const contemTitulo =
-            /ELIGE TU PROFESIONAL|SELECCIONA UN PROFESIONAL|ESCOLHA SEU ATENDENTE|SELECIONE O PROFISSIONAL/.test(
+            /ELIGE TU PROFESIONAL|CHOOSE YOUR ATTENDANT|SELECCIONA UN PROFESIONAL|ESCOLHA SEU ATENDENTE|SELECIONE O PROFISSIONAL/.test(
               normalizado
             );
 
           const contemBotoesEtapa =
-            /CONTINUAR|SIGUIENTE|NEXT/.test(normalizado) &&
+            /CONTINUAR|CONTINUE|SIGUIENTE|NEXT/.test(normalizado) &&
             /VOLVER|VOLTAR|BACK/.test(normalizado);
 
           const tamanhoValido =
@@ -484,7 +484,7 @@ function selecionarServicosPainelCliente() {
         /^[A-ZÁÉÍÓÚÃÕÇÑ][A-ZÁÉÍÓÚÃÕÇÑa-záéíóúãõçñ]+(?:\s+[A-ZÁÉÍÓÚÃÕÇÑa-záéíóúãõçñ]+)+/.test(
           textoOriginal
         ) ||
-        /USUARIO|USUÁRIO|ATENDENTE|PROFISSIONAL|PROFESIONAL|PELUQUERO|BARBEIRO|SGBR|PAGAMENTOS/.test(
+        /USUARIO|USUÁRIO|ATENDENTE|ATTENDANT|PROFISSIONAL|PROFESIONAL|PELUQUERO|BARBEIRO|SGBR|PAGAMENTOS/.test(
           texto
         );
 
@@ -548,7 +548,7 @@ function selecionarServicosPainelCliente() {
           Cypress.$(botao).hasClass('q-btn--disabled') ||
           Cypress.$(botao).is(':disabled');
 
-        return /Continuar|Siguiente|Next/i.test(textoBotao) && !desabilitado;
+        return /Continuar|Continue|Siguiente|Next/i.test(textoBotao) && !desabilitado;
       });
 
     expect(
@@ -563,7 +563,7 @@ function selecionarServicosPainelCliente() {
     .invoke('text')
     .should(
       'match',
-      /Escolha a data|Escolha uma data|Selecione a data|Data|Datas dispon[ií]veis|Elige la fecha|Selecciona.*fecha|Fecha|Fechas disponibles/i
+      /Escolha a data|Choose your booking date|Escolha uma data|Selecione a data|Data|Datas dispon[ií]veis|Elige la fecha|Selecciona.*fecha|Fecha|Fechas disponibles/i
     );
 
   cy.wait(1000);
@@ -591,9 +591,8 @@ function selecionarServicosPainelCliente() {
         /^\d{1,2}\/\d{1,2}/.test(texto);
 
       const contemDiaSemana =
-        /SEGUNDA|TERCA|TERÇA|QUARTA|QUINTA|SEXTA|SABADO|SÁBADO|DOMINGO|LUNES|MARTES|MIERCOLES|MIÉRCOLES|JUEVES|VIERNES/.test(
-          texto
-        );
+      /SEGUNDA|TERCA|QUARTA|QUINTA|SEXTA|SABADO|DOMINGO|LUNES|MARTES|MIERCOLES|JUEVES|VIERNES|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY/i
+      .test(texto);
 
       const naoEhCabecalhoOuResumo =
         !/FINALIZAR RESERVA|FINALIZAR AGENDAMENTO|PROFESIONALFECHAHORARESUMEN|ATENDENTEDATAHORARIORESUMO|FECHA SELECCIONADA|DATA SELECIONADA|SELECIONA UMA DATA|SELECCIONA UNA FECHA|FECHAS DISPONIBLES|DATAS DISPONIVEIS|SERVICIOS|SERVIÇOS|SERVICOS|VOLVER|VOLTAR|CONTINUAR|SIGUIENTE|NEXT/.test(
@@ -669,7 +668,7 @@ function selecionarServicosPainelCliente() {
           Cypress.$(botao).hasClass('q-btn--disabled') ||
           Cypress.$(botao).is(':disabled');
 
-        return /Continuar|Siguiente|Next/i.test(textoBotao) && !desabilitado;
+        return /Continuar|Continue|Siguiente|Next/i.test(textoBotao) && !desabilitado;
       });
 
     expect(
@@ -679,47 +678,71 @@ function selecionarServicosPainelCliente() {
   });
 }
 
-  function selecionarHorario() {
-    cy.get('body', { timeout: 30000 })
-      .invoke('text')
-      .should(
-        'match',
-        /Escolha o hor[aá]rio|Selecione o hor[aá]rio|Hor[aá]rios dispon[ií]veis|Horario|Hora/i
-      );
+function selecionarHorario() {
+  cy.get('body', { timeout: 30000 })
+    .invoke('text')
+    .then((textoOriginal) => {
+      const texto = normalizarTextoBusca(textoOriginal);
 
-    cy.get('body').then(($body) => {
-      const horarios = $body
-        .find('*:visible')
-        .toArray()
-        .filter((el) => {
-          const texto = limparTexto(Cypress.$(el).text());
-          const rect = el.getBoundingClientRect();
+      const contemTituloHorario =
+        /ESCOLHA O HORARIO|SELECIONE O HORARIO|HORARIOS DISPONIVEIS|HORARIO|HORA/.test(texto) ||
+        /CHOOSE YOUR BOOKING TIME|SELECT A TIME|AVAILABLE TIMES|TIME/.test(texto);
 
-          return (
-            /^\d{1,2}:\d{2}$/.test(texto) &&
-            rect.width >= 30 &&
-            rect.height >= 20
-          );
-        }) as HTMLElement[];
+      if (!contemTituloHorario) {
+        cy.log(`Texto da tela: ${textoOriginal.slice(0, 1500)}`);
+        cy.screenshot('titulo-horario-nao-encontrado');
 
-      if (horarios.length === 0) {
-        cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 1500)}`);
-        cy.screenshot('horario-painel-cliente-nao-encontrado');
-
-        throw new Error('Nenhum horário disponível encontrado.');
+        throw new Error('Tela de seleção de horário não reconhecida.');
       }
-
-      const horario = horarios[0];
-
-      cy.log(`Horário escolhido: ${limparTexto(Cypress.$(horario).text())}`);
-
-      cy.wrap(horario)
-        .scrollIntoView()
-        .click('center', { force: true });
     });
 
-    cy.wait(700);
-  }
+  cy.wait(1000);
+
+  cy.get('body').then(($body) => {
+    const horarios = $body
+      .find('*:visible')
+      .toArray()
+      .filter((el) => {
+        const texto = limparTexto(Cypress.$(el).text());
+        const rect = el.getBoundingClientRect();
+
+        const ehHorario = /^\d{1,2}:\d{2}$/.test(texto);
+
+        const tamanhoValido =
+          rect.width >= 30 &&
+          rect.width <= 200 &&
+          rect.height >= 20 &&
+          rect.height <= 100;
+
+        const naoEhCabecalho =
+          !/SELECT A TIME|AVAILABLE TIMES|CHOOSE YOUR BOOKING TIME|TIME|CONTINUE|NEXT/i.test(
+            normalizarTextoBusca(texto)
+          );
+
+        return ehHorario && tamanhoValido && naoEhCabecalho;
+      }) as HTMLElement[];
+
+    if (horarios.length === 0) {
+      cy.log(`Texto da tela: ${limparTexto($body.text()).slice(0, 1500)}`);
+      cy.screenshot('horario-painel-cliente-nao-encontrado');
+
+      throw new Error('Nenhum horário disponível encontrado.');
+    }
+
+    const horario = horarios[0];
+
+    const textoHorario = limparTexto(Cypress.$(horario).text());
+
+    cy.log(`Horário escolhido: ${textoHorario}`);
+
+    cy.wrap(horario)
+      .scrollIntoView()
+      .should('be.visible')
+      .click('center', { force: true });
+  });
+
+  cy.wait(700);
+}
 
   function preencherDadosClienteEConfirmar() {
   cy.get('body', { timeout: 30000 })
@@ -862,7 +885,7 @@ function selecionarServicosPainelCliente() {
           Cypress.$(botao).is(':disabled');
 
         return (
-          /Confirmar agendamento|Confirmar|Agendar|Finalizar/i.test(
+          /Confirmar agendamento|Confirmar|Confirm booking|Agendar|Finalizar/i.test(
             textoBotao
           ) && !estaDesabilitado
         );
@@ -920,7 +943,7 @@ function selecionarServicosPainelCliente() {
       .invoke('text')
       .should(
         'match',
-        /agendamento confirmado|agendamento realizado|sucesso|confirmado|obrigado|reserva confirmada|agendado com sucesso/i
+        /agendamento confirmado|booking confirmed|agendamento realizado|sucesso|confirmado|obrigado|reserva confirmada|agendado com sucesso/i
       );
   });
 });
