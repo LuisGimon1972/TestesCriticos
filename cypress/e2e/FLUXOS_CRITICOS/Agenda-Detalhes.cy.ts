@@ -217,7 +217,7 @@ describe('Agenda Crítica - Múltiplos detalhes', () => {
         message: 'Nenhuma linha disponível.',
       });
 
-      return '';
+      return cy.wrap(''); // ✅ CORRETO
     }
 
     const indiceAleatorio = Cypress._.random(0, linhas.length - 1);
