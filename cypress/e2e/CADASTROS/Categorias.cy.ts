@@ -35,10 +35,16 @@ describe('Categorias - Cadastro', () => {
     cy.url().should('match', /\/categories\/(create|cadastro)/);
 
     cy.get('input:visible')
-      .eq(0)
-      .should('be.visible')
-      .click({ force: true })
-      .type(`{selectall}{backspace}${nomeCategoria}`, { force: true });
+  .eq(0)
+  .should('be.visible')
+  .as('inputNome');
+
+cy.get('@inputNome').click({ force: true });
+
+// 🔥 re-query automático
+cy.get('input:visible')
+  .eq(0)
+  .type(nomeCategoria, { force: true });
 
     cy.get('textarea:visible')
       .first()
