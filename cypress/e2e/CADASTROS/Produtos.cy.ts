@@ -27,49 +27,35 @@ describe('Produtos - Cadastro', () => {
   });
 
   it('Deve cadastrar um produto E2E com nome aleatório.', () => {
-    cy.contains(/Cadastrar produto/i, { timeout: 30000 })
+
+  cy.contains(/Cadastrar produto/i)
+    .should('be.visible')
+    .click({ force: true });
+
+  cy.url().should('match', /\/products\/(create|cadastro)/);
+
+  // 🔥 helper inline (evita repetição)
+  function preencherInput(index: number, valor: string) {
+    cy.get('input:visible')
+      .eq(index)
       .should('be.visible')
       .click({ force: true });
 
-    cy.contains(/Cadastrar produto/i, { timeout: 30000 })
-      .should('be.visible');
-
-    cy.url().should('match', /\/products\/(create|cadastro)/);
-
     cy.get('input:visible')
-      .eq(0)
-      .should('be.visible')
-      .click({ force: true })
-      .type(`{selectall}{backspace}${nomeProduto}`, { force: true });
+      .eq(index)
+      .type(valor, { force: true });
+  }
 
+  preencherInput(0, nomeProduto);
+  preencherInput(1, valor);
+  preencherInput(2, quantidade);
+  preencherInput(3, comissao);
 
-    cy.get('input:visible')
-      .eq(1)
-      .should('be.visible')
-      .click({ force: true })
-      .type(`{selectall}{backspace}${valor}`, { force: true });
+  cy.contains(/Gravar/i)
+    .should('be.visible')
+    .click({ force: true });
 
-    cy.get('input:visible')
-      .eq(2)
-      .should('be.visible')
-      .click({ force: true })
-      .type(`{selectall}{backspace}${quantidade}`, { force: true });
-
-    cy.get('input:visible')
-      .eq(3)
-      .should('be.visible')
-      .click({ force: true })
-      .type(`{selectall}{backspace}${comissao}`, { force: true });
-
-    cy.contains(/Gravar/i, { timeout: 30000 })
-      .should('be.visible')
-      .click({ force: true });
-
-    cy.get('body', { timeout: 30000 })
-      .invoke('text')
-      .should(
-        'match',
-        /produto|sucesso|salvo|cadastrado|Listagem de produtos/i
-      );
-  });
+  cy.get('body')
+    .should('contain.text', 'produto');
+});
 });
