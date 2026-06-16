@@ -34,6 +34,12 @@ Cypress.Commands.add('login', (viewport?: LoginViewport) => {
     .should('be.visible')
     .click();
 
+  cy.wait(2000);
+
+  cy.get('button.q-btn', { timeout: 10000 })
+  .contains('Acessar empresa')
+  .click(); 
+
   cy.wait(5000);
 
   cy.get('body').then(($body) => {

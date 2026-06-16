@@ -295,5 +295,27 @@
     "fantasia": "Fantasia Paraguai 1780345805428",
     "documento": "80032663-6",
     "slug": "py-1780345805428"
+  },
+  {
+    "dataCriacao": "2026-06-02T12:04:47.284Z",
+    "pais": "Brasil",
+    "nomeUsuario": "Usuario 1780401886872",
+    "emailUsuario": "usuario.1780401886872@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "Barbearia 1780401886872",
+    "fantasia": "Fantasia 1780401886872",
+    "documento": "26.220.673/0001-40",
+    "slug": "site-1780401886872"
+  },
+  {
+    "dataCriacao": "2026-06-02T12:05:29.929Z",
+    "pais": "Paraguay",
+    "nomeUsuario": "Usuario Paraguai 1780401929901",
+    "emailUsuario": "usuario.paraguai.1780401929901@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "O-MERK SOCIEDAD ANONIMA E2E 1780401929901",
+    "fantasia": "Fantasia Paraguai 1780401929901",
+    "documento": "80122772-0",
+    "slug": "py-1780401929901"
   }
 ]
