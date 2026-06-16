@@ -37,7 +37,7 @@ Cypress.Commands.add('login', (viewport?: LoginViewport) => {
   cy.wait(2000);
 
   cy.get('button.q-btn', { timeout: 10000 })
-  .contains('Acessar empresa')
+  .contains('Acessar')
   .click(); 
 
   cy.wait(5000);
