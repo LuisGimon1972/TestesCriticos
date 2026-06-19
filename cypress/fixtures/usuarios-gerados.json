@@ -317,5 +317,60 @@
     "fantasia": "Fantasia Paraguai 1780401929901",
     "documento": "80122772-0",
     "slug": "py-1780401929901"
+  },
+  {
+    "dataCriacao": "2026-06-16T18:58:21.891Z",
+    "pais": "Brasil",
+    "nomeUsuario": "Usuario 1781636301485",
+    "emailUsuario": "usuario.1781636301485@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "Barbearia 1781636301485",
+    "fantasia": "Fantasia 1781636301485",
+    "documento": "73.348.504/0001-70",
+    "slug": "site-1781636301485"
+  },
+  {
+    "dataCriacao": "2026-06-17T13:17:31.310Z",
+    "pais": "Brasil",
+    "nomeUsuario": "Usuario 1781702250895",
+    "emailUsuario": "usuario.1781702250895@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "Barbearia 1781702250895",
+    "fantasia": "Fantasia 1781702250895",
+    "documento": "31.257.306/0001-51",
+    "slug": "site-1781702250895"
+  },
+  {
+    "dataCriacao": "2026-06-19T12:33:07.898Z",
+    "pais": "Brasil",
+    "nomeUsuario": "Usuario 1781872386769",
+    "emailUsuario": "usuario.1781872386769@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "Barbearia 1781872386769",
+    "fantasia": "Fantasia 1781872386769",
+    "documento": "70.076.648/0001-27",
+    "slug": "site-1781872386769"
+  },
+  {
+    "dataCriacao": "2026-06-19T12:52:18.035Z",
+    "pais": "Brasil",
+    "nomeUsuario": "Usuario 1781873537617",
+    "emailUsuario": "usuario.1781873537617@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "Barbearia 1781873537617",
+    "fantasia": "Fantasia 1781873537617",
+    "documento": "71.343.821/0001-79",
+    "slug": "site-1781873537617"
+  },
+  {
+    "dataCriacao": "2026-06-19T12:54:46.363Z",
+    "pais": "Brasil",
+    "nomeUsuario": "Usuario 1781873685982",
+    "emailUsuario": "usuario.1781873685982@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "Barbearia 1781873685982",
+    "fantasia": "Fantasia 1781873685982",
+    "documento": "40.122.589/0001-15",
+    "slug": "site-1781873685982"
   }
 ]
