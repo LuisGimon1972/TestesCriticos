@@ -416,5 +416,16 @@
     "fantasia": "Fantasia Paraguai 1781877631938",
     "documento": "80006115-2",
     "slug": "py-1781877631938"
+  },
+  {
+    "dataCriacao": "2026-06-19T14:05:03.829Z",
+    "pais": "Paraguay",
+    "nomeUsuario": "Usuario Paraguai 1781877903809",
+    "emailUsuario": "usuario.paraguai.1781877903809@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "TECNOLOGIA DE NEGOCIOS S.R.L. E2E 1781877903809",
+    "fantasia": "Fantasia Paraguai 1781877903809",
+    "documento": "80030012-2",
+    "slug": "py-1781877903809"
   }
 ]
