@@ -164,7 +164,7 @@ describe('Adicionar Empresa Brasil', () => {
   cy.wait(700);
 }
 
-  function abrirCadastroUsuario(viewport?: LoginViewport) {
+  function fazerLogin(viewport?: LoginViewport) {
     const email = Cypress.env('TEST_USER_EMAIL');
     const password = Cypress.env('TEST_USER_PASSWORD');
     if (!email || !password) throw new Error('Configure TEST_USER_EMAIL e TEST_USER_PASSWORD');
@@ -264,7 +264,7 @@ describe('Adicionar Empresa Brasil', () => {
 }
 
   it('Cadastra usuário, empresa e site com sucesso', () => {
-    abrirCadastroUsuario();    
+    fazerLogin();    
     preencherInformacoesEmpresa();
     preencherConfiguracaoSite();
   });
