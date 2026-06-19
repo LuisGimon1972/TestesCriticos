@@ -12,9 +12,9 @@ type LoginViewport = string | { width: number; height: number };
 describe('Adicionar Empresa Brasil', () => {
   const timestamp = Date.now();
   const nomeUsuario = `Usuario ${timestamp}`;
-  const emailUsuario = `usuario.${timestamp}@teste.com`;
-  const senhaUsuario = '12345678';
-
+  const emailUsuario = Cypress.env('TEST_USER_EMAIL');
+  const senhaUsuario = Cypress.env('TEST_USER_PASSWORD'); 
+  
   const razaoSocial = `Barbearia ${timestamp}`;
   const fantasia = `Fantasia ${timestamp}`;
   const slug = `site-${timestamp}`;
