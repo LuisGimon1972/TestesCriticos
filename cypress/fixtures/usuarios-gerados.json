@@ -372,5 +372,16 @@
     "fantasia": "Fantasia 1781873685982",
     "documento": "40.122.589/0001-15",
     "slug": "site-1781873685982"
+  },
+  {
+    "dataCriacao": "2026-06-19T13:37:31.318Z",
+    "pais": "Brasil",
+    "nomeUsuario": "Usuario 1781876250849",
+    "emailUsuario": "usuario.1781876250849@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "Barbearia 1781876250849",
+    "fantasia": "Fantasia 1781876250849",
+    "documento": "67.540.452/0001-37",
+    "slug": "site-1781876250849"
   }
 ]

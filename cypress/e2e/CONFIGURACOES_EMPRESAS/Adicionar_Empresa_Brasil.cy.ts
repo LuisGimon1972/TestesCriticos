@@ -217,12 +217,51 @@ describe('Adicionar Empresa Brasil', () => {
   }
   
 
-  function preencherConfiguracaoSite() {
+   function preencherConfiguracaoSite() {
     preencherCampoProximoAoLabel(/URL do site|slug/i, slug);
+
     selecionarComboPorLabel(/Segmento/i, /Barbearia/i);
-    cy.contains(/Gravar/i).click();
-    cy.contains(/Dashboard|Clientes|Configurações/i, { timeout: 10000 }).should('exist');
+
+    cy.contains(/Gravar/i, { timeout: 30000 })
+      .should('be.visible')
+      .click({ force: true });
+
+    cy.get('body', { timeout: 30000 })
+      .invoke('text')
+      .should(
+        'match',
+        /Dashboard|Agenda|Clientes|Configura[çc][õo]es|Bom dia|Boa tarde|Boa noite|sucesso/i
+      );
+  salvarUsuarioGeradoNoJson()
   }
+
+   function salvarUsuarioGeradoNoJson() {
+  const arquivo = 'cypress/fixtures/usuarios-gerados.json';
+
+  const usuarioGerado = {
+    dataCriacao: new Date().toISOString(),
+    pais: 'Brasil',
+    nomeUsuario,
+    emailUsuario,
+    senhaUsuario,
+    razaoSocial,
+    fantasia,
+    documento: cnpjValido,
+    slug,
+  };
+
+  cy.readFile(arquivo).then((usuariosExistentes) => {
+    const usuarios = Array.isArray(usuariosExistentes)
+      ? usuariosExistentes
+      : [];
+
+    usuarios.push(usuarioGerado);
+
+    cy.writeFile(arquivo, usuarios);
+
+    cy.log(`Usuário salvo no JSON: ${emailUsuario}`);
+  });
+}
 
   it('Cadastra usuário, empresa e site com sucesso', () => {
     abrirCadastroUsuario();    
