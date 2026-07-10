@@ -38,18 +38,19 @@ describe('Atendentes - Cadastro', () => {
     cy.wait(1000);
 
     cy.get('input:visible')
-      .eq(0)
-      .should('be.visible')
-      .click({ force: true })
-      .clear({ force: true })
-      .type(nomeAtendente, { force: true });
-
-    cy.get('input:visible')
       .eq(1)
       .should('be.visible')
       .click({ force: true })
       .clear({ force: true })
+      .type(nomeAtendente, { force: true });    
+
+    cy.get('input:visible')
+      .eq(0)
+      .should('be.visible')
+      .click({ force: true })      
+      .clear({ force: true })
       .type(emailAtendente, { force: true });
+      
 
     cy.get('input:visible')
       .eq(2)
