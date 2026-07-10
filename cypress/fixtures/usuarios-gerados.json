@@ -427,5 +427,38 @@
     "fantasia": "Fantasia Paraguai 1781877903809",
     "documento": "80030012-2",
     "slug": "py-1781877903809"
+  },
+  {
+    "dataCriacao": "2026-06-22T13:00:45.605Z",
+    "pais": "Brasil",
+    "nomeUsuario": "Usuario 1782133245107",
+    "emailUsuario": "usuario.1779906780446@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "Barbearia 1782133245107",
+    "fantasia": "Fantasia 1782133245107",
+    "documento": "23.124.773/0001-85",
+    "slug": "site-1782133245107"
+  },
+  {
+    "dataCriacao": "2026-06-24T13:05:30.517Z",
+    "pais": "Brasil",
+    "nomeUsuario": "Usuario 1782306330115",
+    "emailUsuario": "luisgimonsgbr@gmail.com",
+    "senhaUsuario": "L1mG1mo*",
+    "razaoSocial": "Barbearia 1782306330115",
+    "fantasia": "Fantasia 1782306330115",
+    "documento": "62.668.562/0001-65",
+    "slug": "site-1782306330115"
+  },
+  {
+    "dataCriacao": "2026-07-10T14:22:39.232Z",
+    "pais": "Paraguay",
+    "nomeUsuario": "Usuario Paraguai 1783693359215",
+    "emailUsuario": "usuario.paraguai.1783693359215@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "S.V.B SOCIEDAD ANONIMA E2E 1783693359215",
+    "fantasia": "Fantasia Paraguai 1783693359215",
+    "documento": "80074799-2",
+    "slug": "py-1783693359215"
   }
 ]
