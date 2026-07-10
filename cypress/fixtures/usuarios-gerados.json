@@ -460,5 +460,16 @@
     "fantasia": "Fantasia Paraguai 1783693359215",
     "documento": "80074799-2",
     "slug": "py-1783693359215"
+  },
+  {
+    "dataCriacao": "2026-07-10T20:07:35.281Z",
+    "pais": "Paraguay",
+    "nomeUsuario": "Usuario Paraguai 1783714055254",
+    "emailUsuario": "usuario.paraguai.1783714055254@teste.com",
+    "senhaUsuario": "12345678",
+    "razaoSocial": "PLAY CELL E.A.S. E2E 1783714055254",
+    "fantasia": "Fantasia Paraguai 1783714055254",
+    "documento": "80123874-9",
+    "slug": "py-1783714055254"
   }
 ]
